@@ -3,13 +3,13 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 const APP_VERSION='0.3.0';
-const CONFIG_KEY='biblioclasse_firebase_config';const DEFAULT_FIREBASE_CONFIG={
-  apiKey:"AIzaSyAM1E55hoouI3JFFGT9dFMxcvNHFVLtRIY",
-  authDomain:"biblioclasse-206e4.firebaseapp.com",
-  projectId:"biblioclasse-206e4",
-  storageBucket:"biblioclasse-206e4.firebasestorage.app",
-  messagingSenderId:"759815939198",
-  appId:"1:759815939198:web:be9474de960e6de652642f"
+const CONFIG_KEY='biblioclasse_firebase_config';const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAM1E55hoouI3JFFGT9dFMxcvNHFVLtRIY",
+  authDomain: "biblioclasse-206e4.firebaseapp.com",
+  projectId: "biblioclasse-206e4",
+  storageBucket: "biblioclasse-206e4.firebasestorage.app",
+  messagingSenderId: "759815939198",
+  appId: "1:759815939198:web:be9474de960e6de652642f"
 };
 const LOCAL_KEY='biblioclasse_local_v03';
 const TYPES={A:'Album',R:'Roman',D:'Documentaire',BD:'BD / manga',C:'Conte / légende',P:'Poésie',T:'Théâtre'};
