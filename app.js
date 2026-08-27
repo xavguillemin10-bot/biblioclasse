@@ -100,7 +100,7 @@ async function remove(kind,id){
   const name={book:'books',student:'students',loan:'loans'}[kind];await deleteDoc(userDoc(name,id));
 }
 
-function topbar(){return `<div class="topbar"><div class="brand"><div class="logo">📚</div><div><h1>BiblioClasse</h1><p>Chaque élève doit trouver un livre à sa pointure · v${APP_VERSION}</p></div></div><div class="row"><span class="pill ${state.mode==='cloud'?'ok':'warn'}">${state.mode==='cloud'?'☁️ Synchronisé':'💻 Local'}</span>${state.user?`<button class="btn btn-secondary" id="logoutBtn">Déconnexion</button>`:''}</div></div>`}
+function topbar(){return `<div class="topbar"><div class="brand"><div class="logo">📚</div><div><h1>BiblioClasse</h1><p>Chaque élève doit trouver un livre à sa pointure · v${APP_VERSION}</p></div></div><div class="row"><span class="pill ${state.mode==='cloud'?'ok':'warn'}">${state.mode==='cloud'?'☁️ Synchronisé':'💻 Local'}</span>${state.user && state.screen!=='student'?'<button class="btn btn-secondary" id="logoutBtn">Déconnexion</button>':''}</div></div>`}
 function bindTop(){const b=$('#logoutBtn');if(b)b.onclick=async()=>{state.teacherUnlocked=false;await signOut(state.auth)}}
 
 function render(){
