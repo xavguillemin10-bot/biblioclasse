@@ -185,7 +185,23 @@ function renderHome(){
 }
 function openTeacher(){if(state.teacherUnlocked){state.screen='teacher';render();return}modal(`<div class="teacher-lock"><h2>👨‍🏫 Accès enseignant</h2><p>Saisis le code PIN enseignant.</p><div class="field"><input id="pinInput" inputmode="numeric" type="password" maxlength="8" autofocus></div><div class="row"><button class="btn" id="pinOk">Entrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div><p class="muted">Code initial : 1234. Tu pourras le changer dans Réglages.</p></div>`);$('#pinOk').onclick=()=>{if($('#pinInput').value===String(state.settings.teacherPin||'1234')){state.teacherUnlocked=true;state.screen='teacher';closeModal();render()}else alert('Code incorrect')}}
 
-function teacherTabs(){const tabs=[['library','📚 Bibliothèque'],['search','🔎 Recherche rapide'],['add','➕ Ajouter'],['students','👦 Élèves'],['periods','📅 Sélections'],['codes','🏷️ Cotation'],['settings','⚙️ Réglages']];return `<div class="tabs">return `<div class="tabs">${tabs.map(...)${tabs.map(([k,l])=>`<button class="btn ${state.teacherTab===k?'active':'btn-ghost'}" data-tab="${k}">${l}</button>`).join('')}</div>`}
+function teacherTabs(){
+  const tabs=[
+    ['library','📚 Bibliothèque'],
+    ['search','🔎 Recherche rapide'],
+    ['add','➕ Ajouter'],
+    ['students','🧒 Élèves'],
+    ['periods','🗓️ Sélections'],
+    ['codes','🏷️ Cotation'],
+    ['settings','⚙️ Réglages']
+  ];
+
+  return `<div class="tabs">
+    ${tabs.map(([k,l])=>
+      `<button class="btn ${state.teacherTab===k?'active':'btn-ghost'}" data-tab="${k}">${l}</button>`
+    ).join('')}
+  </div>`;
+}
 function renderTeacher(){
   appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;bindTop();$('[data-home]').onclick=()=>{state.screen='home';render()};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.teacherTab=b.dataset.tab;renderTeacher()});
   ({library:renderLibrary,search:renderQuickSearch,add:renderAdd,students:renderStudents,periods:renderPeriods,codes:renderCodes,settings:renderSettings}[state.teacherTab]||renderLibrary)();
