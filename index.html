@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#6b4fbb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BiblioClasse" />
+  <title>BiblioClasse</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" class="toast hidden"></div>
+  <div id="modal" class="modal hidden" aria-hidden="true"></div>
+  <div id="scannerOverlay" class="scanner-overlay hidden" aria-hidden="true">
+    <div class="scanner-panel">
+      <div class="scanner-head">
+        <div>
+          <strong id="scannerTitle">Scanner</strong>
+          <div class="muted" id="scannerSubtitle"></div>
+        </div>
+        <button class="btn btn-secondary" id="closeScannerBtn">Fermer</button>
+      </div>
+      <div id="reader"></div>
+      <div class="manual-scan">
+        <input id="manualScanInput" inputmode="numeric" placeholder="Saisir l’ISBN si besoin" />
+        <button class="btn" id="manualScanBtn">Valider</button>
+      </div>
+      <div id="scanLog" class="scan-log"></div>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

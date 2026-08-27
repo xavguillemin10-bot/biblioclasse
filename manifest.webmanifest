@@ -1,0 +1,9 @@
+{
+  "name":"BiblioClasse",
+  "short_name":"BiblioClasse",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f7f4ee",
+  "theme_color":"#6b4fbb",
+  "description":"Bibliothèque de classe : catalogue, emprunts, collections et sélections."
+}
