@@ -100,15 +100,66 @@ async function remove(kind,id){
   const name={book:'books',student:'students',loan:'loans'}[kind];await deleteDoc(userDoc(name,id));
 }
 
-function topbar(){return `<div class="topbar"><div class="brand"><div class="logo">📚</div><div><h1>BiblioClasse</h1><p>Chaque élève doit trouver un livre à sa pointure · v${APP_VERSION}</p></div></div><div class="row"><span class="pill ${state.mode==='cloud'?'ok':'warn'}">${state.mode==='cloud'?'☁️ Synchronisé':'💻 Local'}</span>${state.user && state.screen!=='student'?'<button class="btn btn-secondary" id="logoutBtn">Déconnexion</button>':''}</div></div>`}
-function bindTop(){const b=$('#logoutBtn');if(b)b.onclick=async()=>{state.teacherUnlocked=false;await signOut(state.auth)}}
+function topbar(){
+  return `<div class="topbar">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div>
+        <h1>BiblioClasse</h1>
+        <p>Chaque élève doit trouver un livre à sa pointure · v${APP_VERSION}</p>
+      </div>
+    </div>
+    <div class="row">
+      <span class="pill ${state.mode==='cloud'?'ok':'warn'}">
+        ${state.mode==='cloud'?'☁️ Synchronisé':'💻 Local'}
+      </span>
+      ${state.screen==='teacher' && state.teacherUnlocked
+        ? `<button class="btn btn-secondary" id="studentModeBtn">👦 Mode élève</button>
+           <button class="btn btn-secondary" id="logoutBtn">Déconnexion</button>`
+        : state.user
+          ? `<button class="btn btn-secondary" id="teacherModeBtn">👩‍🏫 Mode enseignant</button>`
+          : ''
+      }
+    </div>
+  </div>`;
+}
+
+function bindTop(){
+  const teacherBtn=$('#teacherModeBtn');
+  if(teacherBtn){
+    teacherBtn.onclick=()=>openTeacher();
+  }
+
+  const studentBtn=$('#studentModeBtn');
+  if(studentBtn){
+    studentBtn.onclick=()=>{
+      state.teacherUnlocked=false;
+      state.screen='student';
+      render();
+    };
+  }
+
+  const logoutBtn=$('#logoutBtn');
+  if(logoutBtn){
+    logoutBtn.onclick=async()=>{
+      state.teacherUnlocked=false;
+      state.screen='student';
+      await signOut(state.auth);
+    };
+  }
+}
 
 function render(){
-  if(!readFirebaseConfig())return renderSetup(false);
-  if(state.mode==='cloud'&&!state.user)return renderLogin();
-  if(state.screen==='teacher')return renderTeacher();
-  if(state.screen==='student')return renderStudent();
-  renderHome();
+  if(!readFirebaseConfig()) return renderSetup(false);
+  if(state.mode==='cloud' && !state.user) return renderLogin();
+
+  if(state.screen==='teacher' && state.teacherUnlocked){
+    return renderTeacher();
+  }
+
+  state.screen='student';
+  state.teacherUnlocked=false;
+  renderStudent();
 }
 
 function renderSetup(invalid=false,error=''){
@@ -134,7 +185,7 @@ function renderHome(){
 }
 function openTeacher(){if(state.teacherUnlocked){state.screen='teacher';render();return}modal(`<div class="teacher-lock"><h2>👨‍🏫 Accès enseignant</h2><p>Saisis le code PIN enseignant.</p><div class="field"><input id="pinInput" inputmode="numeric" type="password" maxlength="8" autofocus></div><div class="row"><button class="btn" id="pinOk">Entrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div><p class="muted">Code initial : 1234. Tu pourras le changer dans Réglages.</p></div>`);$('#pinOk').onclick=()=>{if($('#pinInput').value===String(state.settings.teacherPin||'1234')){state.teacherUnlocked=true;state.screen='teacher';closeModal();render()}else alert('Code incorrect')}}
 
-function teacherTabs(){const tabs=[['library','📚 Bibliothèque'],['search','🔎 Recherche rapide'],['add','➕ Ajouter'],['students','👦 Élèves'],['periods','📅 Sélections'],['codes','🏷️ Cotation'],['settings','⚙️ Réglages']];return `<div class="tabs"><button class="btn btn-ghost" data-home>← Accueil</button>${tabs.map(([k,l])=>`<button class="btn ${state.teacherTab===k?'active':'btn-ghost'}" data-tab="${k}">${l}</button>`).join('')}</div>`}
+function teacherTabs(){const tabs=[['library','📚 Bibliothèque'],['search','🔎 Recherche rapide'],['add','➕ Ajouter'],['students','👦 Élèves'],['periods','📅 Sélections'],['codes','🏷️ Cotation'],['settings','⚙️ Réglages']];return `<div class="tabs">return `<div class="tabs">${tabs.map(...)${tabs.map(([k,l])=>`<button class="btn ${state.teacherTab===k?'active':'btn-ghost'}" data-tab="${k}">${l}</button>`).join('')}</div>`}
 function renderTeacher(){
   appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;bindTop();$('[data-home]').onclick=()=>{state.screen='home';render()};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.teacherTab=b.dataset.tab;renderTeacher()});
   ({library:renderLibrary,search:renderQuickSearch,add:renderAdd,students:renderStudents,periods:renderPeriods,codes:renderCodes,settings:renderSettings}[state.teacherTab]||renderLibrary)();
@@ -408,7 +459,7 @@ function exportData(){const d={version:APP_VERSION,exportedAt:nowIso(),books:sta
 async function importData(e){const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!confirm(`Importer ${d.books?.length||0} livres et ${d.students?.length||0} élèves ?`))return;if(state.mode==='local'){state.books=d.books||[];state.students=d.students||[];state.loans=d.loans||[];state.settings=d.settings||state.settings;localSave();render();return}const batch=writeBatch(state.fs);(d.books||[]).forEach(x=>batch.set(userDoc('books',x.id||uid()),x));(d.students||[]).forEach(x=>batch.set(userDoc('students',x.id||uid()),x));(d.loans||[]).forEach(x=>batch.set(userDoc('loans',x.id||uid()),x));batch.set(userDoc('meta','settings'),d.settings||state.settings,{merge:true});await batch.commit();toast('Import terminé')}catch(err){alert('Import impossible : '+err.message)}}
 
 function renderStudent(){
-  appEl.innerHTML=`<div class="app">${topbar()}<div class="card hero"><div class="row between"><div><h2>👦 Espace élèves</h2><p class="muted">Simple et rapide : prénom → scan → terminé.</p></div><button class="btn btn-secondary" id="studentHomeBtn">← Accueil</button></div><div class="grid"><div class="tile" id="borrowTile"><strong>📚 J’emprunte</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="returnTile"><strong>📖 Je rends</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="studentSearchTile"><strong>🔍 Je cherche un livre</strong><span>Voir seulement les livres actuellement mis en classe.</span></div><div class="tile" id="profileTile"><strong>✨ Mon profil lecteur</strong><span>Mes goûts et mon appétit de lecture.</span></div></div></div></div>`;bindTop();$('#studentHomeBtn').onclick=()=>{state.screen='home';render()};$('#borrowTile').onclick=()=>chooseStudentFor('borrow');$('#returnTile').onclick=()=>chooseStudentFor('return');$('#studentSearchTile').onclick=studentSearch;$('#profileTile').onclick=()=>chooseStudentFor('profile');
+  appEl.innerHTML=`<div class="app">${topbar()}<div class="card hero"><div class="row between"><div><h2>👦 Espace élèves</h2><p class="muted">Simple et rapide : prénom → scan → terminé.</p></div></div><div class="grid"><div class="tile" id="borrowTile"><strong>📚 J’emprunte</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="returnTile"><strong>📖 Je rends</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="studentSearchTile"><strong>🔍 Je cherche un livre</strong><span>Voir seulement les livres actuellement mis en classe.</span></div><div class="tile" id="profileTile"><strong>✨ Mon profil lecteur</strong><span>Mes goûts et mon appétit de lecture.</span></div></div></div></div>`;bindTop();$('#studentHomeBtn').onclick=()=>{state.screen='home';render()};$('#borrowTile').onclick=()=>chooseStudentFor('borrow');$('#returnTile').onclick=()=>chooseStudentFor('return');$('#studentSearchTile').onclick=studentSearch;$('#profileTile').onclick=()=>chooseStudentFor('profile');
 }
 function chooseStudentFor(action){const students=state.students.filter(s=>s.active!==false);if(!students.length)return alert('Aucun élève actif.');modal(`<h2>${action==='borrow'?'J’emprunte':action==='return'?'Je rends':'Mon profil lecteur'}</h2><p>Choisis ton prénom.</p><div class="student-list">${students.map(s=>`<button class="student-btn" data-pick-student="${s.id}">${esc(s.name)}</button>`).join('')}</div><div style="margin-top:12px"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);document.querySelectorAll('[data-pick-student]').forEach(b=>b.onclick=()=>{const id=b.dataset.pickStudent;closeModal();if(action==='profile')return editStudentProfile(id);startLoanScan(action,id)})}
 async function startLoanScan(action,studentId){openScanner(action==='borrow'?'📚 Scanner le livre à emprunter':'📖 Scanner le livre rendu','Le code-barres ISBN au dos du livre.',async code=>{if(state.scanBusy)return;state.scanBusy=true;try{const b=state.books.find(x=>x.isbn===code||x.code===code);if(!b){beep(false);return alert('Ce livre n’est pas encore dans BiblioClasse.')}if(action==='borrow'){const av=availability(b);if(av.free<1){beep(false);return alert('Aucun exemplaire disponible.')}const loan={id:uid(),bookId:b.id,studentId,borrowedAt:nowIso(),returnedAt:null};state.loans.push(loan);await persist('loan',loan);beep(true);await stopScanner();successAndReturn('Bonne lecture !')}else{const loan=state.loans.find(l=>l.studentId===studentId&&l.bookId===b.id&&!l.returnedAt);if(!loan){beep(false);return alert('Ce livre n’est pas emprunté par cet élève.')}loan.returnedAt=nowIso();await persist('loan',loan);beep(true);await stopScanner();successAndReturn('Merci, livre rendu !')}}finally{state.scanBusy=false}})}
