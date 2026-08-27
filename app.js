@@ -3,7 +3,14 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 const APP_VERSION='0.3.0';
-const CONFIG_KEY='biblioclasse_firebase_config';
+const CONFIG_KEY='biblioclasse_firebase_config';const DEFAULT_FIREBASE_CONFIG={
+  apiKey:"AIzaSyAM1E55hoouI3JFFGT9dFMxcvNHFVLtRIY",
+  authDomain:"biblioclasse-206e4.firebaseapp.com",
+  projectId:"biblioclasse-206e4",
+  storageBucket:"biblioclasse-206e4.firebasestorage.app",
+  messagingSenderId:"759815939198",
+  appId:"1:759815939198:web:be9474de960e6de652642f"
+};
 const LOCAL_KEY='biblioclasse_local_v03';
 const TYPES={A:'Album',R:'Roman',D:'Documentaire',BD:'BD / manga',C:'Conte / légende',P:'Poésie',T:'Théâtre'};
 const OWNERS={classe:'Bibliothèque de classe',ecole:'Bibliothèque de l’école',personnel:'Personnel enseignant'};
@@ -38,7 +45,14 @@ function localLoad(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY))||nul
 function localSave(){localStorage.setItem(LOCAL_KEY,JSON.stringify({books:state.books,students:state.students,loans:state.loans,settings:state.settings}))}
 function loadLocalIntoState(){const d=localLoad();if(d){state.books=d.books||[];state.students=d.students||[];state.loans=d.loans||[];state.settings={teacherPin:'1234',collections:{...DEFAULT_COLLECTIONS},...(d.settings||{}),collections:{...DEFAULT_COLLECTIONS,...(d.settings?.collections||{})}}}}
 
-function readFirebaseConfig(){try{return JSON.parse(localStorage.getItem(CONFIG_KEY))}catch{return null}}
+function readFirebaseConfig(){
+  try{
+    const saved=localStorage.getItem(CONFIG_KEY);
+    return saved ? JSON.parse(saved) : DEFAULT_FIREBASE_CONFIG;
+  }catch{
+    return DEFAULT_FIREBASE_CONFIG;
+  }
+}
 function storeFirebaseConfig(cfg){localStorage.setItem(CONFIG_KEY,JSON.stringify(cfg))}
 function clearFirebaseConfig(){localStorage.removeItem(CONFIG_KEY);location.reload()}
 
