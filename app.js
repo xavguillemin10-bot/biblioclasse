@@ -196,9 +196,174 @@ function editBook(book,isNew=false){
 function openBook(id){const b=state.books.find(x=>x.id===id);if(!b)return;const av=availability(b);modal(`<div class="grid"><div class="cover" style="max-width:260px;margin:auto">${b.cover?`<img src="${esc(b.cover)}">`:'📕'}</div><div><h2>${esc(b.title)}</h2><p><strong>${esc(b.authors||'')}</strong></p><p>${b.code?`<span class="pill">${esc(b.code)}</span>`:'<span class="pill warn">À coter</span>'}${b.collection?`<span class="pill">${esc(b.collection)}</span>`:''}<span class="pill ${av.free?'ok':'warn'}">${av.free}/${av.copies} disponible(s)</span></p><p>${esc(b.summary||'')}</p><p>${(b.keywords||[]).map(k=>`<span class="pill">${esc(k)}</span>`).join('')}</p><p class="muted">${esc(OWNERS[b.owner]||'')} ${b.location?'· '+esc(b.location):''}</p><div class="row"><button class="btn" id="editBookBtn">Modifier</button><button class="btn btn-secondary" id="toggleStatusBtn">${b.status==='active'?'Mettre en réserve':'Mettre en classe'}</button><button class="btn btn-secondary" onclick="closeModal()">Fermer</button></div></div></div>`);$('#editBookBtn').onclick=()=>{closeModal();editBook(b,false)};$('#toggleStatusBtn').onclick=async()=>{b.status=b.status==='active'?'reserve':'active';await persist('book',b);closeModal();toast(b.status==='active'?'Livre mis en classe':'Livre mis en réserve')};}
 
 function renderStudents(){
-  const c=$('#teacherContent');const active=state.students.filter(s=>s.active!==false);const archived=state.students.filter(s=>s.active===false);c.innerHTML=`<div class="card"><div class="row between"><div><h2>👦 Élèves</h2><p class="muted">La liste peut être renouvelée chaque année sans supprimer l’historique.</p></div><button class="btn" id="addStudentBtn">Ajouter un élève</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Prénom</th><th>Prêts en cours</th><th>Historique</th><th></th></tr></thead><tbody>${active.map(s=>studentRow(s)).join('')}</tbody></table></div>${archived.length?`<h3>Archivés</h3><div class="muted">${archived.map(s=>esc(s.name)).join(', ')}</div>`:''}</div>`;$('#addStudentBtn').onclick=()=>editStudent({id:uid(),name:'',active:true,interests:[],appetite:''},true);document.querySelectorAll('[data-student-edit]').forEach(b=>b.onclick=()=>editStudent(state.students.find(s=>s.id===b.dataset.studentEdit),false));
+  const c=$('#teacherContent');
+  const active=state.students.filter(s=>s.active!==false);
+  const archived=state.students.filter(s=>s.active===false);
+
+  c.innerHTML=`<div class="card">
+    <div class="row between">
+      <div>
+        <h2>👦 Élèves</h2>
+        <p class="muted">La liste peut être renouvelée chaque année sans supprimer l’historique.</p>
+      </div>
+      <div class="row">
+        <label class="btn btn-secondary">
+          📥 Importer une classe
+          <input id="classImportInput" class="hidden" type="file" accept=".csv,text/csv">
+        </label>
+        <button class="btn" id="addStudentBtn">Ajouter un élève</button>
+      </div>
+    </div>
+
+    <p class="muted">Import CSV depuis Excel : colonnes Prénom, Nom et Date de naissance. Le nom et la date restent côté enseignant.</p>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Élève</th><th>Prêts en cours</th><th>Historique</th><th></th></tr>
+        </thead>
+        <tbody>${active.map(s=>studentRow(s)).join('')}</tbody>
+      </table>
+    </div>
+
+    ${archived.length?`<h3>Archivés</h3><div class="muted">${archived.map(s=>esc(s.name)).join(', ')}</div>`:''}
+  </div>`;
+
+  $('#addStudentBtn').onclick=()=>editStudent({id:uid(),name:'',active:true,interests:[],appetite:''},true);
+
+  $('#classImportInput').onchange=async e=>{
+    const f=e.target.files?.[0];
+    if(!f)return;
+    try{
+      await importStudentsCsv(f);
+    }catch(err){
+      alert('Import impossible : '+err.message);
+    }finally{
+      e.target.value='';
+    }
+  };
+
+  document.querySelectorAll('[data-student-edit]').forEach(
+    b=>b.onclick=()=>editStudent(state.students.find(s=>s.id===b.dataset.studentEdit),false)
+  );
 }
-function studentRow(s){const cur=state.loans.filter(l=>l.studentId===s.id&&!l.returnedAt).length,hist=state.loans.filter(l=>l.studentId===s.id).length;return `<tr><td><strong>${esc(s.name)}</strong></td><td>${cur}</td><td>${hist}</td><td><button class="btn btn-secondary" data-student-edit="${s.id}">Modifier</button></td></tr>`}
+
+function parseCsvLine(line,separator){
+  const out=[];
+  let value='',quoted=false;
+
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+
+    if(ch==='"'){
+      if(quoted && line[i+1]==='"'){
+        value+='"';
+        i++;
+      }else{
+        quoted=!quoted;
+      }
+    }else if(ch===separator && !quoted){
+      out.push(value.trim());
+      value='';
+    }else{
+      value+=ch;
+    }
+  }
+
+  out.push(value.trim());
+  return out;
+}
+
+async function importStudentsCsv(file){
+  const text=(await file.text()).replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/).filter(x=>x.trim());
+
+  if(lines.length<2)throw new Error('Le fichier ne contient pas de liste d’élèves.');
+
+  const first=lines[0];
+  const separators=[';',',','\t'];
+  const separator=separators
+    .map(s=>[s,(first.split(s).length-1)])
+    .sort((a,b)=>b[1]-a[1])[0][0];
+
+  const headers=parseCsvLine(first,separator).map(h=>slug(h));
+
+  let firstNameIndex=headers.findIndex(h=>['prenom','firstname','first_name'].includes(h));
+  const lastNameIndex=headers.findIndex(h=>['nom','lastname','last_name','nom_de_famille'].includes(h));
+  const birthIndex=headers.findIndex(h=>['date_de_naissance','datenaissance','naissance','birthdate','date_of_birth'].includes(h));
+
+  if(firstNameIndex<0)firstNameIndex=0;
+
+  const imported=[];
+  let skipped=0;
+
+  for(const line of lines.slice(1)){
+    const cols=parseCsvLine(line,separator);
+    const firstName=(cols[firstNameIndex]||'').trim();
+    if(!firstName)continue;
+
+    const lastName=lastNameIndex>=0?(cols[lastNameIndex]||'').trim():'';
+    const birthDate=birthIndex>=0?(cols[birthIndex]||'').trim():'';
+
+    const duplicate=state.students.some(s=>
+      norm(s.firstName||s.name)===norm(firstName) &&
+      norm(s.lastName||'')===norm(lastName) &&
+      String(s.birthDate||'')===birthDate
+    );
+
+    if(duplicate){
+      skipped++;
+      continue;
+    }
+
+    imported.push({
+      id:uid(),
+      name:firstName,
+      firstName,
+      lastName,
+      birthDate,
+      active:true,
+      interests:[],
+      appetite:'',
+      updatedAt:nowIso()
+    });
+  }
+
+  if(!imported.length){
+    alert(skipped
+      ? 'Tous les élèves du fichier sont déjà présents.'
+      : 'Aucun élève valide trouvé dans le fichier.');
+    return;
+  }
+
+  if(!confirm(`Importer ${imported.length} élève(s) ?${skipped?`\n${skipped} doublon(s) ignoré(s).`:''}`))return;
+
+  state.students.push(...imported);
+
+  if(state.mode==='local'){
+    localSave();
+    renderStudents();
+  }else{
+    const batch=writeBatch(state.fs);
+    imported.forEach(s=>batch.set(userDoc('students',s.id),s));
+    await batch.commit();
+  }
+
+  toast(`${imported.length} élève(s) importé(s)`);
+}
+
+function studentRow(s){
+  const cur=state.loans.filter(l=>l.studentId===s.id&&!l.returnedAt).length;
+  const hist=state.loans.filter(l=>l.studentId===s.id).length;
+  const displayName=[s.firstName||s.name,s.lastName||''].filter(Boolean).join(' ');
+
+  return `<tr>
+    <td><strong>${esc(displayName)}</strong>${s.birthDate?`<div class="small muted">${esc(s.birthDate)}</div>`:''}</td>
+    <td>${cur}</td>
+    <td>${hist}</td>
+    <td><button class="btn btn-secondary" data-student-edit="${s.id}">Modifier</button></td>
+  </tr>`;
+}
 function editStudent(s,isNew=false){modal(`<h2>${isNew?'Ajouter':'Modifier'} un élève</h2><div class="field"><label>Prénom</label><input id="s_name" value="${esc(s.name||'')}"></div><div class="field"><label>Centres d’intérêt (optionnel, séparés par des virgules)</label><input id="s_interests" value="${esc((s.interests||[]).join(', '))}" placeholder="animaux, sport, mystère…"></div><div class="field"><label>Appétit de lecture</label><select id="s_appetite"><option value="">Non renseigné</option><option ${s.appetite==='grignote'?'selected':''} value="grignote">🐭 Je grignote</option><option ${s.appetite==='regulier'?'selected':''} value="regulier">🐰 J’aime bien lire</option><option ${s.appetite==='faim'?'selected':''} value="faim">🐺 J’ai faim de livres</option><option ${s.appetite==='ogre'?'selected':''} value="ogre">🦖 Ogre de lecture</option></select></div>${!isNew?`<div class="field"><label>Statut</label><select id="s_active"><option value="true" ${s.active!==false?'selected':''}>Élève actuel</option><option value="false" ${s.active===false?'selected':''}>Archivé</option></select></div>`:''}<div class="row"><button class="btn" id="saveStudentBtn">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);$('#saveStudentBtn').onclick=async()=>{const obj={...s,name:$('#s_name').value.trim(),interests:$('#s_interests').value.split(',').map(x=>x.trim()).filter(Boolean),appetite:$('#s_appetite').value,active:isNew?true:$('#s_active').value==='true',updatedAt:nowIso()};if(!obj.name)return alert('Prénom obligatoire');if(isNew)state.students.push(obj);else Object.assign(s,obj);await persist('student',obj);closeModal();toast('Élève enregistré')};}
 
 function renderPeriods(){
