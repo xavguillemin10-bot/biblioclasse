@@ -264,6 +264,54 @@ async function fetchBookByISBN(raw){
     createdAt:nowIso()
   };
 
+ // 0) BnF - Catalogue général
+try{
+  const url =
+    `https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve` +
+    `&query=bib.isbn%20all%20%22${isbn}%22` +
+    `&recordSchema=dublincore&maximumRecords=1`;
+
+  const r=await fetch(url);
+
+  if(r.ok){
+    const xmlText=await r.text();
+    const xml=new DOMParser().parseFromString(xmlText,'application/xml');
+
+    const getValues=(name)=>{
+      return [...xml.getElementsByTagNameNS('*',name)]
+        .map(el=>el.textContent?.trim())
+        .filter(Boolean);
+    };
+
+    const titles=getValues('title');
+    const creators=getValues('creator');
+    const publishers=getValues('publisher');
+    const subjects=getValues('subject');
+    const descriptions=getValues('description');
+
+    if(titles.length){
+      data.title=data.title||titles[0];
+    }
+
+    if(creators.length){
+      data.authors=data.authors||creators.join(', ');
+    }
+
+    if(publishers.length){
+      data.publisher=data.publisher||publishers[0];
+    }
+
+    if(descriptions.length){
+      data.summary=data.summary||descriptions[0];
+    }
+
+    if(subjects.length){
+      data.subjects.push(...subjects);
+    }
+  }
+}catch(e){
+  console.warn('BnF:',e);
+} 
   // 1) Google Books
   try{
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
