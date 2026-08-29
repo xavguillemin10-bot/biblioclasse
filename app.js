@@ -350,6 +350,58 @@ try{
 }catch(e){
   console.warn('BnF:',e);
 }
+ // 0b) Sudoc - catalogue universitaire français
+try{
+  const url =
+    `https://www.sudoc.abes.fr/cbs/sru/?operation=searchRetrieve` +
+    `&version=1.1` +
+    `&recordSchema=unimarc` +
+    `&maximumRecords=1` +
+    `&query=isb%3D${encodeURIComponent(isbn)}`;
+
+  const r=await fetch(url);
+
+  if(r.ok){
+    const xmlText=await r.text();
+    const xml=new DOMParser().parseFromString(xmlText,'application/xml');
+
+    // Récupère les sous-zones UNIMARC
+    const subfields=[...xml.getElementsByTagNameNS('*','subfield')];
+
+    const values=(code)=>{
+      return subfields
+        .filter(el=>el.getAttribute('code')===code)
+        .map(el=>el.textContent?.trim())
+        .filter(Boolean);
+    };
+
+    // Sujets / matières :
+    // on les conserve pour la future génération des mots-clés
+    const allText=subfields
+      .map(el=>el.textContent?.trim())
+      .filter(Boolean);
+
+    const interesting=allText.filter(t=>{
+      const n=norm(t);
+
+      return (
+        n.includes('mytholog') ||
+        n.includes('grec') ||
+        n.includes('cyclop') ||
+        n.includes('ulysse') ||
+        n.includes('jeunesse') ||
+        n.includes('roman') ||
+        n.includes('conte')
+      );
+    });
+
+    if(interesting.length){
+      data.subjects.push(...interesting);
+    }
+  }
+}catch(e){
+  console.warn('Sudoc:',e);
+}
   // 1) Google Books
   try{
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
