@@ -264,7 +264,7 @@ async function fetchBookByISBN(raw){
     createdAt:nowIso()
   };
 
- // 0) BnF - Catalogue général
+// 0) BnF - Catalogue général
 try{
   const url =
     `https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve` +
@@ -289,29 +289,67 @@ try{
     const subjects=getValues('subject');
     const descriptions=getValues('description');
 
+    // TITRE : retirer "/ Auteur" ajouté par la BnF
     if(titles.length){
-      data.title=data.title||titles[0];
+      let title=titles[0];
+
+      if(title.includes(' / ')){
+        title=title.split(' / ')[0];
+      }
+
+      data.title=data.title||title.trim();
     }
 
+    // AUTEUR : transformer
+    // "Baussier, Sylvie (1964-....). Auteur du texte"
+    // en "Sylvie Baussier"
     if(creators.length){
-      data.authors=data.authors||creators.join(', ');
+      let author=creators[0];
+
+      author=author
+        .replace(/\([^)]*\)/g,'')
+        .replace(/\.\s*Auteur du texte.*$/i,'')
+        .replace(/\s+/g,' ')
+        .trim();
+
+      if(author.includes(',')){
+        const parts=author.split(',').map(x=>x.trim());
+        if(parts.length>=2){
+          author=`${parts[1]} ${parts[0]}`;
+        }
+      }
+
+      data.authors=data.authors||author;
     }
 
+    // ÉDITEUR
     if(publishers.length){
       data.publisher=data.publisher||publishers[0];
     }
 
-    if(descriptions.length){
-      data.summary=data.summary||descriptions[0];
-    }
-
+    // SUJETS BnF
     if(subjects.length){
       data.subjects.push(...subjects);
+    }
+
+    // RÉSUMÉ :
+    // ignorer les informations techniques du type EAN / code-barres
+    const usefulDescriptions=descriptions.filter(d=>{
+      const t=d.toLowerCase();
+
+      return !t.includes('code à barres') &&
+             !t.includes('ean') &&
+             !t.includes('isbn') &&
+             d.length>80;
+    });
+
+    if(usefulDescriptions.length){
+      data.summary=data.summary||usefulDescriptions[0];
     }
   }
 }catch(e){
   console.warn('BnF:',e);
-} 
+}
   // 1) Google Books
   try{
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
