@@ -453,34 +453,76 @@ try{
     console.warn('Google Books:',e);
   }
 
-  // 2) Open Library
-  try{
-    const r=await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
-    if(r.ok){
-      const j=await r.json();
+  // 2) Open Library - édition + œuvre
+try{
+  const r=await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
 
-      data.title=data.title||j.title||'';
-      data.publisher=data.publisher||(j.publishers?.[0]||'');
+  if(r.ok){
+    const j=await r.json();
 
-      if(!data.summary){
-        if(typeof j.description==='string'){
-          data.summary=j.description;
-        }else if(j.description?.value){
-          data.summary=j.description.value;
-        }
-      }
+    data.title=data.title||j.title||'';
+    data.publisher=data.publisher||(j.publishers?.[0]||'');
 
-      if(!data.cover && j.covers?.[0]){
-        data.cover=`https://covers.openlibrary.org/b/id/${j.covers[0]}-L.jpg`;
-      }
-
-      if(Array.isArray(j.subjects)){
-        data.subjects.push(...j.subjects);
+    // Description éventuellement présente sur l'édition
+    if(!data.summary){
+      if(typeof j.description==='string'){
+        data.summary=j.description;
+      }else if(j.description?.value){
+        data.summary=j.description.value;
       }
     }
-  }catch(e){
-    console.warn('Open Library:',e);
+
+    // Sujets de l'édition
+    if(Array.isArray(j.subjects)){
+      data.subjects.push(...j.subjects);
+    }
+
+    // Couverture Open Library en secours
+    if(!data.cover && j.covers?.[0]){
+      data.cover=
+        `https://covers.openlibrary.org/b/id/${j.covers[0]}-L.jpg`;
+    }
+
+    // Aller chercher l'œuvre correspondante
+    const workKey=j.works?.[0]?.key;
+
+    if(workKey){
+      try{
+        const wr=await fetch(
+          `https://openlibrary.org${workKey}.json`
+        );
+
+        if(wr.ok){
+          const work=await wr.json();
+
+          // Résumé de l'œuvre
+          if(!data.summary){
+            if(typeof work.description==='string'){
+              data.summary=work.description;
+            }else if(work.description?.value){
+              data.summary=work.description.value;
+            }
+          }
+
+          // Sujets de l'œuvre
+          if(Array.isArray(work.subjects)){
+            data.subjects.push(...work.subjects);
+          }
+
+          // Couverture de l'œuvre en secours
+          if(!data.cover && work.covers?.[0]){
+            data.cover=
+              `https://covers.openlibrary.org/b/id/${work.covers[0]}-L.jpg`;
+          }
+        }
+      }catch(e){
+        console.warn('Open Library work:',e);
+      }
+    }
   }
+}catch(e){
+  console.warn('Open Library:',e);
+}
 
   // Nettoyage des sujets
   data.subjects=[
