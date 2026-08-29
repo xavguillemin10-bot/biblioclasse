@@ -350,7 +350,32 @@ try{
 }catch(e){
   console.warn('BnF:',e);
 }
- // 0b) Sudoc - catalogue universitaire français
+// 0a) Couverture BnF
+try{
+  const isbnForBnf=isbn.length===13
+    ? `${isbn.slice(0,3)}-${isbn.slice(3,4)}-${isbn.slice(4,7)}-${isbn.slice(7,12)}-${isbn.slice(12)}`
+    : isbn;
+
+  const coverUrl =
+    `https://openapi.bnf.fr/couverture/image/image/recupererImage` +
+    `?ISBN=${encodeURIComponent(isbnForBnf)}` +
+    `&couverture=1` +
+    `&taille=originale` +
+    `&largeur=500&hauteur=700`;
+
+  const r=await fetch(coverUrl);
+
+  if(r.ok){
+    const contentType=r.headers.get('content-type')||'';
+
+    if(contentType.startsWith('image/')){
+      data.cover=coverUrl;
+    }
+  }
+}catch(e){
+  console.warn('Couverture BnF:',e);
+}
+  // 0b) Sudoc - catalogue universitaire français
 try{
   const url =
     `https://www.sudoc.abes.fr/cbs/sru/?operation=searchRetrieve` +
