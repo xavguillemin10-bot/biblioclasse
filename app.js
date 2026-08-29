@@ -203,8 +203,26 @@ function teacherTabs(){
   </div>`;
 }
 function renderTeacher(){
-  appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;bindTop();$('[data-home]').onclick=()=>{state.screen='home';render()};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.teacherTab=b.dataset.tab;renderTeacher()});
-  ({library:renderLibrary,search:renderQuickSearch,add:renderAdd,students:renderStudents,periods:renderPeriods,codes:renderCodes,settings:renderSettings}[state.teacherTab]||renderLibrary)();
+  appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;
+
+  bindTop();
+
+  document.querySelectorAll('[data-tab]').forEach(b=>{
+    b.onclick=()=>{
+      state.teacherTab=b.dataset.tab;
+      renderTeacher();
+    };
+  });
+
+  ({
+    library:renderLibrary,
+    search:renderQuickSearch,
+    add:renderAdd,
+    students:renderStudents,
+    periods:renderPeriods,
+    codes:renderCodes,
+    settings:renderSettings
+  }[state.teacherTab] || renderLibrary)();
 }
 
 function availability(book){const out=state.loans.filter(l=>l.bookId===book.id&&!l.returnedAt).length;const copies=Number(book.copies||1);return {out,copies,free:Math.max(0,copies-out)}}
