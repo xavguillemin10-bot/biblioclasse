@@ -243,11 +243,102 @@ function renderAdd(){
 }
 
 async function fetchBookByISBN(raw){
-  const isbn=(raw||'').replace(/[^0-9Xx]/g,'');if(!isbn)throw new Error('ISBN vide');
-  let data={isbn,title:'',authors:'',publisher:'',collection:'',type:'',summary:'',cover:'',keywords:[],owner:'classe',status:'reserve',copies:1,code:'',createdAt:nowIso()};
-  try{const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);if(r.ok){const j=await r.json();const v=j.items?.[0]?.volumeInfo;if(v){data.title=v.title||'';data.authors=(v.authors||[]).join(', ');data.publisher=v.publisher||'';data.summary=v.description||'';data.cover=(v.imageLinks?.thumbnail||v.imageLinks?.smallThumbnail||'').replace('http:','https:');data.collection=detectCollection([v.title,v.subtitle].filter(Boolean).join(' '));data.type=guessType(v.categories||[],v.title||'');}}}catch(e){console.warn('Google Books',e)}
-  try{const r=await fetch(`https://openlibrary.org/isbn/${isbn}.json`);if(r.ok){const j=await r.json();data.title=data.title||j.title||'';data.publisher=data.publisher||(j.publishers||[])[0]||'';data.summary=data.summary||(typeof j.description==='string'?j.description:j.description?.value)||'';data.cover=data.cover||(j.covers?.[0]?`https://covers.openlibrary.org/b/id/${j.covers[0]}-L.jpg`:'');if(!data.authors&&j.authors?.[0]?.key){try{const ar=await fetch(`https://openlibrary.org${j.authors[0].key}.json`);if(ar.ok)data.authors=(await ar.json()).name||''}catch{}}}}catch(e){console.warn('OpenLibrary',e)}
-  data.collection=data.collection||detectCollection(data.title);data.type=data.type||guessType([],data.title);data.keywords=suggestKeywords(data);
+  const isbn=(raw||'').replace(/[^0-9Xx]/g,'');
+  if(!isbn) throw new Error('ISBN vide');
+
+  let data={
+    isbn,
+    title:'',
+    authors:'',
+    publisher:'',
+    collection:'',
+    type:'',
+    summary:'',
+    cover:'',
+    keywords:[],
+    subjects:[],
+    owner:'classe',
+    status:'reserve',
+    copies:1,
+    code:'',
+    createdAt:nowIso()
+  };
+
+  // 1) Google Books
+  try{
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    if(r.ok){
+      const j=await r.json();
+      const v=j.items?.[0]?.volumeInfo;
+
+      if(v){
+        data.title=v.title||data.title;
+        data.authors=(v.authors||[]).join(', ')||data.authors;
+        data.publisher=v.publisher||data.publisher;
+        data.summary=v.description||data.summary;
+        data.cover=
+          v.imageLinks?.thumbnail ||
+          v.imageLinks?.smallThumbnail ||
+          data.cover;
+
+        if(Array.isArray(v.categories)){
+          data.subjects.push(...v.categories);
+        }
+      }
+    }
+  }catch(e){
+    console.warn('Google Books:',e);
+  }
+
+  // 2) Open Library
+  try{
+    const r=await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+    if(r.ok){
+      const j=await r.json();
+
+      data.title=data.title||j.title||'';
+      data.publisher=data.publisher||(j.publishers?.[0]||'');
+
+      if(!data.summary){
+        if(typeof j.description==='string'){
+          data.summary=j.description;
+        }else if(j.description?.value){
+          data.summary=j.description.value;
+        }
+      }
+
+      if(!data.cover && j.covers?.[0]){
+        data.cover=`https://covers.openlibrary.org/b/id/${j.covers[0]}-L.jpg`;
+      }
+
+      if(Array.isArray(j.subjects)){
+        data.subjects.push(...j.subjects);
+      }
+    }
+  }catch(e){
+    console.warn('Open Library:',e);
+  }
+
+  // Nettoyage des sujets
+  data.subjects=[
+    ...new Set(
+      data.subjects
+        .filter(Boolean)
+        .map(s=>String(s).trim())
+        .filter(Boolean)
+    )
+  ];
+
+  // Détection automatique
+  data.collection=data.collection||detectCollection(data.title);
+  data.type=data.type||guessType(data.subjects,data.title);
+
+  // Mots-clés automatiques
+  data.keywords=suggestKeywords({
+    ...data,
+    subjects:data.subjects
+  });
+
   return data;
 }
 function detectCollection(s){const t=norm(s);if(t.includes('max et lili'))return 'Max et Lili';if(t.includes('cabane magique'))return 'La Cabane magique';if(t.includes('anatole bristol'))return 'Les Enquêtes d’Anatole Bristol';if(t.includes('je suis en ce2'))return 'Je suis en CE2';return ''}
