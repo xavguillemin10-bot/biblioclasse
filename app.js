@@ -557,6 +557,7 @@ async function fetchBookByISBN(raw){
     authors:'',
     publisher:'',
     collection:'',
+    collectionNumber:null,
     type:'',
     summary:'',
     cover:'',
@@ -908,6 +909,7 @@ try{
         publisher:data.publisher,
         summary:data.summary,
         collection:data.collection,
+        collectionNumber:data.collectionNumber,
         type:data.type,
         subjects:data.subjects
       })
@@ -927,6 +929,9 @@ try{
         data.collection=enriched.collection;
       }
 
+      if(enriched.collectionNumber!==undefined && enriched.collectionNumber!==null){
+  data.collectionNumber=Number(enriched.collectionNumber);
+}
       if(enriched.type){
         data.type=enriched.type;
       }
@@ -1295,7 +1300,32 @@ function renderCodes(){
   const c=$('#teacherContent');const groups={};state.books.forEach(b=>{const key=b.collection||`__TYPE__${b.type||'X'}`;(groups[key]=groups[key]||[]).push(b)});const uncoded=state.books.filter(b=>!b.code).length;
   c.innerHTML=`<div class="card"><h2>🏷️ Cotation</h2><p><strong>${uncoded}</strong> livre(s) restent à coter. Règle : collection → initiales de collection ; livre isolé → catégorie. Exemples : <strong>ML-001</strong>, <strong>CAB-001</strong>, <strong>D-001</strong>.</p><div class="danger-note">La cotation est volontairement faite après l’inventaire. Vérifie d’abord les collections détectées.</div><h3>Préfixes proposés</h3><div class="table-wrap"><table class="table"><thead><tr><th>Groupe</th><th>Livres</th><th>Préfixe</th></tr></thead><tbody>${Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).map(([g,arr])=>{const isType=g.startsWith('__TYPE__');const label=isType?(TYPES[g.replace('__TYPE__','')]||'À classer'):g;const pref=isType?g.replace('__TYPE__',''):(state.settings.collections[g]||suggestCollectionCode(g));return `<tr><td>${esc(label)}</td><td>${arr.length}</td><td><input style="max-width:110px" data-prefix-group="${esc(g)}" value="${esc(pref)}"></td></tr>`}).join('')}</tbody></table></div><div class="row"><button class="btn" id="savePrefixesBtn">Enregistrer les préfixes</button><button class="btn btn-ok" id="assignCodesBtn">Attribuer les cotes manquantes</button></div></div>`;
   $('#savePrefixesBtn').onclick=async()=>{document.querySelectorAll('[data-prefix-group]').forEach(i=>{const g=i.dataset.prefixGroup;if(!g.startsWith('__TYPE__'))state.settings.collections[g]=i.value.trim().toUpperCase()});await persist('settings',state.settings);toast('Préfixes enregistrés')};
-  $('#assignCodesBtn').onclick=async()=>{if(state.books.some(b=>!b.type&&!b.collection)&&!confirm('Certains livres n’ont ni type ni collection. Ils recevront une cote X-xxx. Continuer ?'))return;document.querySelectorAll('[data-prefix-group]').forEach(i=>{const g=i.dataset.prefixGroup;if(!g.startsWith('__TYPE__'))state.settings.collections[g]=i.value.trim().toUpperCase()});await persist('settings',state.settings);const counters={};state.books.filter(b=>b.code).forEach(b=>{const m=(b.code||'').match(/^(.+)-(\d+)$/);if(m)counters[m[1]]=Math.max(counters[m[1]]||0,Number(m[2]))});const updates=[];state.books.filter(b=>!b.code).sort((a,b)=>`${a.collection||a.type||'X'} ${a.title}`.localeCompare(`${b.collection||b.type||'X'} ${b.title}`,'fr')).forEach(b=>{const prefix=b.collection?(state.settings.collections[b.collection]||suggestCollectionCode(b.collection)):(b.type||'X');counters[prefix]=(counters[prefix]||0)+1;b.code=`${prefix}-${String(counters[prefix]).padStart(3,'0')}`;updates.push(b)});if(state.mode==='local'){localSave();render();toast(`${updates.length} cote(s) attribuée(s)`)}else{const batch=writeBatch(state.fs);updates.forEach(b=>batch.set(userDoc('books',b.id),{code:b.code},{merge:true}));await batch.commit();toast(`${updates.length} cote(s) attribuée(s)`)}};
+  $('#assignCodesBtn').onclick=async()=>{if(state.books.some(b=>!b.type&&!b.collection)&&!confirm('Certains livres n’ont ni type ni collection. Ils recevront une cote X-xxx. Continuer ?'))return;document.querySelectorAll('[data-prefix-group]').forEach(i=>{const g=i.dataset.prefixGroup;if(!g.startsWith('__TYPE__'))state.settings.collections[g]=i.value.trim().toUpperCase()});await persist('settings',state.settings);const counters={};state.books.filter(b=>b.code).forEach(b=>{const m=(b.code||'').match(/^(.+)-(\d+)$/);if(m)counters[m[1]]=Math.max(counters[m[1]]||0,Number(m[2]))});const updates=[];state.books.filter(b=>!b.code).sort((a,b)=>{
+  const groupA=a.collection||a.type||'X';
+  const groupB=b.collection||b.type||'X';
+
+  const groupCompare=groupA.localeCompare(groupB,'fr');
+  if(groupCompare!==0) return groupCompare;
+
+  const numA=Number(a.collectionNumber);
+  const numB=Number(b.collectionNumber);
+
+  const hasNumA=Number.isFinite(numA) && numA>0;
+  const hasNumB=Number.isFinite(numB) && numB>0;
+
+  if(hasNumA && hasNumB && numA!==numB){
+    return numA-numB;
+  }
+
+  if(hasNumA && !hasNumB) return -1;
+  if(!hasNumA && hasNumB) return 1;
+
+  return (a.title||'').localeCompare(
+    b.title||'',
+    'fr',
+    {numeric:true,sensitivity:'base'}
+  );
+}).forEach(b=>{const prefix=b.collection?(state.settings.collections[b.collection]||suggestCollectionCode(b.collection)):(b.type||'X');counters[prefix]=(counters[prefix]||0)+1;b.code=`${prefix}-${String(counters[prefix]).padStart(3,'0')}`;updates.push(b)});if(state.mode==='local'){localSave();render();toast(`${updates.length} cote(s) attribuée(s)`)}else{const batch=writeBatch(state.fs);updates.forEach(b=>batch.set(userDoc('books',b.id),{code:b.code},{merge:true}));await batch.commit();toast(`${updates.length} cote(s) attribuée(s)`)}};
 }
 function suggestCollectionCode(c){return norm(c).split(/\s+/).filter(w=>!['la','le','les','de','des','du','et','en','d'].includes(w)).map(w=>w[0]).join('').slice(0,3).toUpperCase()||'COL'}
 
