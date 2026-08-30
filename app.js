@@ -1459,28 +1459,56 @@ modal(`
     </div>
 
     <div class="row">
-      <button
-        class="btn btn-secondary"
-        id="skipRatingBtn">
-        Pas maintenant
-      </button>
-    </div>
+  <button
+    class="btn"
+    id="validateRatingBtn"
+    disabled>
+    ⭐ Valider ma note
+  </button>
+
+  <button
+    class="btn btn-secondary"
+    id="skipRatingBtn">
+    Pas maintenant
+  </button>
+</div>
   </div>
 `);
 
-document.querySelectorAll('[data-rating]').forEach(star=>{
-  star.onclick=async()=>{
-    const rating=Number(star.dataset.rating);
+let selectedRating=0;
 
-    loan.rating=rating;
-    await persist('loan',loan);
+const stars=[...document.querySelectorAll('[data-rating]')];
 
-    closeModal();
-    successAndReturn(
-      `Merci ! Tu as donné ${rating} étoile${rating>1?'s':''} ⭐`
-    );
+const showRating=(rating)=>{
+  stars.forEach(star=>{
+    const value=Number(star.dataset.rating);
+    star.textContent=value<=rating ? '★' : '☆';
+  });
+
+  const validateBtn=$('#validateRatingBtn');
+  if(validateBtn){
+    validateBtn.disabled=rating===0;
+  }
+};
+
+stars.forEach(star=>{
+  star.onclick=()=>{
+    selectedRating=Number(star.dataset.rating);
+    showRating(selectedRating);
   };
 });
+
+$('#validateRatingBtn').onclick=async()=>{
+  if(!selectedRating) return;
+
+  loan.rating=selectedRating;
+  await persist('loan',loan);
+
+  closeModal();
+  successAndReturn(
+    `Merci ! Tu as donné ${selectedRating} étoile${selectedRating>1?'s':''} ⭐`
+  );
+};
 
 $('#skipRatingBtn').onclick=()=>{
   closeModal();
