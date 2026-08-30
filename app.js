@@ -1155,7 +1155,138 @@ function renderStudent(){
   appEl.innerHTML=`<div class="app">${topbar()}<div class="card hero"><div class="row between"><div><h2>👦 Espace élèves</h2><p class="muted">Simple et rapide : prénom → scan → terminé.</p></div></div><div class="grid"><div class="tile" id="borrowTile"><strong>📚 J’emprunte</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="returnTile"><strong>📖 Je rends</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="studentSearchTile"><strong>🔍 Je cherche un livre</strong><span>Voir seulement les livres actuellement mis en classe.</span></div><div class="tile" id="profileTile"><strong>✨ Mon profil lecteur</strong><span>Mes goûts et mon appétit de lecture.</span></div></div></div></div>`;bindTop();$('#borrowTile').onclick=()=>chooseStudentFor('borrow');$('#returnTile').onclick=()=>chooseStudentFor('return');$('#studentSearchTile').onclick=studentSearch;$('#profileTile').onclick=()=>chooseStudentFor('profile');
 }
 function chooseStudentFor(action){const students=state.students.filter(s=>s.active!==false);if(!students.length)return alert('Aucun élève actif.');modal(`<h2>${action==='borrow'?'J’emprunte':action==='return'?'Je rends':'Mon profil lecteur'}</h2><p>Choisis ton prénom.</p><div class="student-list">${students.map(s=>`<button class="student-btn" data-pick-student="${s.id}">${esc(s.name)}</button>`).join('')}</div><div style="margin-top:12px"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);document.querySelectorAll('[data-pick-student]').forEach(b=>b.onclick=()=>{const id=b.dataset.pickStudent;closeModal();if(action==='profile')return editStudentProfile(id);startLoanScan(action,id)})}
-async function startLoanScan(action,studentId){openScanner(action==='borrow'?'📚 Scanner le livre à emprunter':'📖 Scanner le livre rendu','Le code-barres ISBN au dos du livre.',async code=>{if(state.scanBusy)return;state.scanBusy=true;try{const b=state.books.find(x=>x.isbn===code||x.code===code);if(!b){beep(false);return alert('Ce livre n’est pas encore dans BiblioClasse.')}if(action==='borrow'){const av=availability(b);if(av.free<1){beep(false);return alert('Aucun exemplaire disponible.')}const loan={id:uid(),bookId:b.id,studentId,borrowedAt:nowIso(),returnedAt:null};state.loans.push(loan);await persist('loan',loan);beep(true);await stopScanner();successAndReturn('Bonne lecture !')}else{const loan=state.loans.find(l=>l.studentId===studentId&&l.bookId===b.id&&!l.returnedAt);if(!loan){beep(false);return alert('Ce livre n’est pas emprunté par cet élève.')}loan.returnedAt=nowIso();await persist('loan',loan);beep(true);await stopScanner();successAndReturn('Merci, livre rendu !')}}finally{state.scanBusy=false}})}
+async function startLoanScan(action,studentId){
+  openScanner(
+    action==='borrow'
+      ? '📚 Scanner le livre à emprunter'
+      : '↩️ Scanner le livre rendu',
+    'Le code-barres ISBN au dos du livre.',
+    async code=>{
+      if(state.scanBusy) return;
+      state.scanBusy=true;
+
+      try{
+        const b=state.books.find(
+          x=>x.isbn===code || x.code===code
+        );
+
+        if(!b){
+          beep(false);
+          return alert(
+            'Ce livre n’est pas encore enregistré dans BiblioClasse.'
+          );
+        }
+
+        if(action==='borrow'){
+
+          // 1 — Un livre en réserve ne peut pas être emprunté par l’élève
+          if(b.status!=='active'){
+            beep(false);
+            return alert(
+              `📦 Ce livre n’est pas disponible actuellement.\n\n` +
+              `${b.title || 'Ce livre'} est rangé dans la réserve de la bibliothèque.\n\n` +
+              `👉 Va voir la maîtresse si tu souhaites l’emprunter.`
+            );
+          }
+
+          // 2 — Vérification de la disponibilité réelle du livre
+          const av=availability(b);
+
+          if(av.free<1){
+            beep(false);
+
+            const currentLoan=state.loans.find(
+              l=>l.bookId===b.id && !l.returnedAt
+            );
+
+            const borrower=currentLoan
+              ? state.students.find(s=>s.id===currentLoan.studentId)
+              : null;
+
+            return alert(
+              borrower
+                ? `📕 Ce livre est déjà emprunté par ${borrower.name || borrower.firstName}.`
+                : `📕 Aucun exemplaire de ce livre n’est disponible actuellement.`
+            );
+          }
+
+          // 3 — Vérification des prêts déjà en cours pour cet élève
+          const currentLoans=state.loans.filter(
+            l=>l.studentId===studentId && !l.returnedAt
+          );
+
+          if(currentLoans.length){
+            const titles=currentLoans.map(l=>{
+              const book=state.books.find(x=>x.id===l.bookId);
+              return `• ${book?.title || 'Livre sans titre'}`;
+            }).join('\n');
+
+            const ok=confirm(
+              `⚠️ Tu as déjà ${currentLoans.length} livre${currentLoans.length>1?'s':''} à rendre :\n\n` +
+              `${titles}\n\n` +
+              `Pense à ${currentLoans.length>1?'les':'le'} rapporter à l’école.\n\n` +
+              `Tu peux quand même emprunter ce nouveau livre.\n\n` +
+              `Continuer l’emprunt ?`
+            );
+
+            if(!ok){
+              return;
+            }
+          }
+
+          // 4 — Création du prêt
+          const loan={
+            id:uid(),
+            bookId:b.id,
+            studentId,
+            borrowedAt:nowIso(),
+            returnedAt:null
+          };
+
+          state.loans.push(loan);
+          await persist('loan',loan);
+
+          beep(true);
+          await stopScanner();
+
+          successAndReturn(
+            `Bonne lecture ! 📚\n${b.title || ''}`
+          );
+
+        }else{
+
+          // RETOUR
+          const loan=state.loans.find(
+            l=>
+              l.studentId===studentId &&
+              l.bookId===b.id &&
+              !l.returnedAt
+          );
+
+          if(!loan){
+            beep(false);
+            return alert(
+              'Ce livre n’est pas emprunté par cet élève.'
+            );
+          }
+
+          loan.returnedAt=nowIso();
+          await persist('loan',loan);
+
+          beep(true);
+          await stopScanner();
+
+          successAndReturn(
+            `Merci, livre rendu ! 📗\n${b.title || ''}`
+          );
+        }
+
+      }finally{
+        state.scanBusy=false;
+      }
+    }
+  );
+}
 function successAndReturn(msg){modal(`<div class="success-screen">✅<br>${esc(msg)}</div>`);setTimeout(()=>{closeModal();renderStudent()},1500)}
 function studentSearch(){const books=state.books.filter(b=>b.status==='active'&&availability(b).free>0);modal(`<h2>🔍 Livres disponibles en classe</h2><div class="field"><input id="studentSearchQ" placeholder="animaux, aventure, Max et Lili…"></div><div id="studentSearchBooks" class="books"></div><button class="btn btn-secondary" onclick="closeModal()">Fermer</button>`);const run=()=>{const q=norm($('#studentSearchQ').value);const r=books.filter(b=>!q||norm([b.title,b.authors,b.collection,b.summary,(b.keywords||[]).join(' ')].join(' ')).includes(q));$('#studentSearchBooks').innerHTML=r.map(bookCard).join('')};$('#studentSearchQ').oninput=run;run()}
 function editStudentProfile(studentId){const s=state.students.find(x=>x.id===studentId);if(!s)return;modal(`<h2>✨ Mon profil lecteur — ${esc(s.name)}</h2><p>Mes centres d’intérêt peuvent changer pendant l’année.</p><div class="field"><label>Ce que j’aime</label><input id="profileInterests" value="${esc((s.interests||[]).join(', '))}" placeholder="animaux, sport, humour, enquêtes…"></div><div class="field"><label>Mon appétit de lecture</label><select id="profileAppetite"><option value="">Je ne sais pas encore</option><option value="grignote" ${s.appetite==='grignote'?'selected':''}>🐭 Je grignote de temps en temps</option><option value="regulier" ${s.appetite==='regulier'?'selected':''}>🐰 J’aime bien lire</option><option value="faim" ${s.appetite==='faim'?'selected':''}>🐺 J’ai souvent faim de livres</option><option value="ogre" ${s.appetite==='ogre'?'selected':''}>🦖 Je suis un ogre de lecture</option></select></div><div class="row"><button class="btn" id="saveProfileBtn">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);$('#saveProfileBtn').onclick=async()=>{s.interests=$('#profileInterests').value.split(',').map(x=>x.trim()).filter(Boolean);s.appetite=$('#profileAppetite').value;await persist('student',s);closeModal();toast('Profil enregistré')}}
