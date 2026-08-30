@@ -192,6 +192,7 @@ function teacherTabs(){
     ['add','➕ Ajouter'],
     ['students','🧒 Élèves'],
     ['periods','🗓️ Sélections'],
+    ['loans','📕 Emprunts'],
     ['codes','🏷️ Cotation'],
     ['settings','⚙️ Réglages']
   ];
