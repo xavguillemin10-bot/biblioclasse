@@ -422,6 +422,7 @@ function renderLoans(){
                   <th>Livre</th>
                   <th>Emprunté le</th>
                   <th>Depuis</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -480,6 +481,13 @@ function renderLoans(){
                           : `${days} jour${days>1?'s':''}`
                         }
                       </td>
+                      <td>
+  <button
+    class="btn btn-secondary"
+    data-return-loan="${l.id}">
+    ↩️ Rendre
+  </button>
+</td>
                     </tr>
                   `;
                 }).join('')}
@@ -491,6 +499,43 @@ function renderLoans(){
       }
     </div>
   `;
+  document.querySelectorAll('[data-return-loan]').forEach(btn=>{
+  btn.onclick=async()=>{
+    const loan=state.loans.find(
+      l=>l.id===btn.dataset.returnLoan
+    );
+
+    if(!loan) return;
+
+    const student=state.students.find(
+      s=>s.id===loan.studentId
+    );
+
+    const book=state.books.find(
+      b=>b.id===loan.bookId
+    );
+
+    const studentName=student
+      ? (student.name || student.firstName || 'cet élève')
+      : 'cet élève';
+
+    const bookTitle=book
+      ? (book.title || 'ce livre')
+      : 'ce livre';
+
+    if(!confirm(
+      `Confirmer le retour de "${bookTitle}" pour ${studentName} ?`
+    )){
+      return;
+    }
+
+    loan.returnedAt=nowIso();
+    await persist('loan',loan);
+
+    toast('Livre rendu ✓');
+    renderLoans();
+  };
+});
 }
 function renderQuickSearch(){
   const c=$('#teacherContent');c.innerHTML=`<div class="card"><h2>🔎 Recherche rapide</h2><div class="searchbar"><input id="quickQ" placeholder="Titre, auteur, collection, thème, mot-clé, cote…" autofocus><select id="quickScope"><option value="all">Toute la bibliothèque</option><option value="active">Livres en classe</option><option value="reserve">Livres en réserve</option></select></div><div id="quickCount" class="muted"></div><div id="quickBooks" class="books"></div></div>`;
