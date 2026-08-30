@@ -668,7 +668,8 @@ async function startMultiAdd(){
     try{
       const existing=state.books.find(b=>b.isbn===code);
       if(existing){existing.copies=Number(existing.copies||1)+1;await persist('book',existing);logs.unshift({kind:'ok',text:`${code} — ${existing.title} — exemplaire n°${existing.copies}`});beep(true)}
-      else{const found=await fetchBookByISBN(code);if(!found.title){logs.unshift({kind:'bad',text:`${code} — non trouvé, à compléter`});const b={...found,id:uid(),needsReview:true};state.books.push(b);await persist('book',b);beep(false)}else{const b={...found,id:uid(),needsReview:false};state.books.push(b);await persist('book',b);logs.unshift({kind:'ok',text:`${code} — ${found.title}`});beep(true)}}
+      else{const found=await fetchBookByISBN(code);if(!found.title){logs.unshift({kind:'bad',text:`${code} — non trouvé, à compléter`});const owner = $('#quickOwnerSelect')?.value || 'teacher';
+const b={...found,id:uid(),owner,needsReview:true};state.books.push(b);await persist('book',b);beep(false)}else{const b={...found,id:uid(),needsReview:false};state.books.push(b);await persist('book',b);logs.unshift({kind:'ok',text:`${code} — ${found.title}`});beep(true)}}
     }catch(e){logs.unshift({kind:'bad',text:`${code} — erreur : ${e.message}`});beep(false)}finally{state.scanBusy=false;renderScanLog(logs)}
   },true);renderScanLog(logs);
 }
