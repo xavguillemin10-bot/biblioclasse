@@ -229,8 +229,161 @@ function availability(book){const out=state.loans.filter(l=>l.bookId===book.id&&
 function bookCard(b){const av=availability(b);return `<div class="book" data-book="${b.id}"><span class="badge">${esc(b.code||'à coter')}</span><div class="cover">${b.cover?`<img src="${esc(b.cover)}" alt="">`:'📕'}</div><h3>${esc(b.title||'Sans titre')}</h3><p>${esc(b.authors||'')}</p><div>${b.collection?`<span class="pill">${esc(b.collection)}</span>`:''}<span class="pill ${av.free?'ok':'warn'}">${av.free}/${av.copies} dispo</span>${b.status==='active'?'<span class="pill ok">En classe</span>':'<span class="pill gray">Réserve</span>'}</div></div>`}
 function bindBookCards(){document.querySelectorAll('[data-book]').forEach(el=>el.onclick=()=>openBook(el.dataset.book))}
 function renderLibrary(){
-  const c=$('#teacherContent');c.innerHTML=`<div class="card"><div class="row between"><div><h2>📚 Bibliothèque</h2><p class="muted">Vue visuelle de tous les livres.</p></div><div class="row"><select id="libOwner"><option value="">Tous les propriétaires</option>${Object.entries(OWNERS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><select id="libStatus"><option value="">Tous les statuts</option><option value="active">En classe</option><option value="reserve">En réserve</option></select></div></div><div id="libraryBooks" class="books"></div></div>`;
-  const refresh=()=>{const o=$('#libOwner').value,s=$('#libStatus').value;const books=state.books.filter(b=>(!o||b.owner===o)&&(!s||b.status===s));$('#libraryBooks').innerHTML=books.length?books.map(bookCard).join(''):'<p>Aucun livre.</p>';bindBookCards()};$('#libOwner').onchange=refresh;$('#libStatus').onchange=refresh;refresh();
+  const c=$('#teacherContent');
+
+  c.innerHTML=`
+    <div class="card">
+      <div class="row between">
+        <h2>📚 Bibliothèque</h2>
+        <span class="muted">Vue visuelle de tous les livres</span>
+      </div>
+
+      <div class="row">
+        <select id="libOwner">
+          <option value="">Tous les propriétaires</option>
+          ${Object.entries(OWNERS)
+            .map(([k,v])=>`<option value="${k}">${v}</option>`)
+            .join('')}
+        </select>
+
+        <select id="libStatus">
+          <option value="">Tous les statuts</option>
+          <option value="active">En classe</option>
+          <option value="reserve">En réserve</option>
+        </select>
+      </div>
+
+      <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" id="selectAllBooks">
+          ☑️ Tout sélectionner
+        </button>
+
+        <button class="btn btn-secondary" id="unselectAllBooks">
+          ⬜ Tout désélectionner
+        </button>
+
+        <button class="btn" id="setActiveBooks">
+          📗 Passer en classe
+        </button>
+
+        <button class="btn btn-secondary" id="setReserveBooks">
+          📦 Mettre en réserve
+        </button>
+
+        <span id="selectedBooksCount" class="muted">0 sélectionné</span>
+      </div>
+    </div>
+
+    <div id="libraryBooks" class="books"></div>
+  `;
+
+  let visibleBooks=[];
+
+  const updateCount=()=>{
+    const n=document.querySelectorAll('.book-select:checked').length;
+    $('#selectedBooksCount').textContent=
+      `${n} livre${n>1?'s':''} sélectionné${n>1?'s':''}`;
+  };
+
+  const refresh=()=>{
+    const o=$('#libOwner').value;
+    const s=$('#libStatus').value;
+
+    visibleBooks=state.books.filter(
+      b=>(!o||b.owner===o)&&(!s||b.status===s)
+    );
+
+    $('#libraryBooks').innerHTML=visibleBooks.length
+      ? visibleBooks.map(b=>`
+          <div style="position:relative;">
+            <label
+              style="
+                position:absolute;
+                z-index:5;
+                top:8px;
+                left:8px;
+                background:white;
+                padding:7px 9px;
+                border-radius:10px;
+                box-shadow:0 1px 5px rgba(0,0,0,.25);
+              "
+              onclick="event.stopPropagation()"
+            >
+              <input
+                type="checkbox"
+                class="book-select"
+                value="${b.id}"
+                style="width:20px;height:20px;"
+              >
+            </label>
+
+            ${bookCard(b)}
+          </div>
+        `).join('')
+      : `<p>Aucun livre.</p>`;
+
+    bindBookCards();
+
+    document.querySelectorAll('.book-select').forEach(cb=>{
+      cb.onchange=updateCount;
+    });
+
+    updateCount();
+  };
+
+  const changeStatus=async status=>{
+    const ids=[
+      ...document.querySelectorAll('.book-select:checked')
+    ].map(cb=>cb.value);
+
+    if(!ids.length){
+      alert('Sélectionne au moins un livre.');
+      return;
+    }
+
+    const label=status==='active'?'en classe':'en réserve';
+
+    if(!confirm(
+      `Passer ${ids.length} livre${ids.length>1?'s':''} ${label} ?`
+    )){
+      return;
+    }
+
+    for(const id of ids){
+      const b=state.books.find(x=>x.id===id);
+
+      if(b){
+        b.status=status;
+        b.updatedAt=nowIso();
+        await persist('book',b);
+      }
+    }
+
+    toast(`${ids.length} livre${ids.length>1?'s':''} mis ${label}`);
+    refresh();
+  };
+
+  $('#libOwner').onchange=refresh;
+  $('#libStatus').onchange=refresh;
+
+  $('#selectAllBooks').onclick=()=>{
+    document.querySelectorAll('.book-select').forEach(cb=>{
+      cb.checked=true;
+    });
+    updateCount();
+  };
+
+  $('#unselectAllBooks').onclick=()=>{
+    document.querySelectorAll('.book-select').forEach(cb=>{
+      cb.checked=false;
+    });
+    updateCount();
+  };
+
+  $('#setActiveBooks').onclick=()=>changeStatus('active');
+  $('#setReserveBooks').onclick=()=>changeStatus('reserve');
+
+  refresh();
 }
 function renderQuickSearch(){
   const c=$('#teacherContent');c.innerHTML=`<div class="card"><h2>🔎 Recherche rapide</h2><div class="searchbar"><input id="quickQ" placeholder="Titre, auteur, collection, thème, mot-clé, cote…" autofocus><select id="quickScope"><option value="all">Toute la bibliothèque</option><option value="active">Livres en classe</option><option value="reserve">Livres en réserve</option></select></div><div id="quickCount" class="muted"></div><div id="quickBooks" class="books"></div></div>`;
