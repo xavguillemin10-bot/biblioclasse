@@ -221,6 +221,7 @@ function renderTeacher(){
     add:renderAdd,
     students:renderStudents,
     periods:renderPeriods,
+    loans:renderLoans,
     codes:renderCodes,
     settings:renderSettings
   }[state.teacherTab] || renderLibrary)();
@@ -385,6 +386,111 @@ function renderLibrary(){
   $('#setReserveBooks').onclick=()=>changeStatus('reserve');
 
   refresh();
+}
+function renderLoans(){
+  const c=$('#teacherContent');
+
+  const activeLoans=state.loans
+    .filter(l=>!l.returnedAt)
+    .sort((a,b)=>new Date(a.borrowedAt)-new Date(b.borrowedAt));
+
+  const countByStudent={};
+
+  activeLoans.forEach(l=>{
+    countByStudent[l.studentId]=(countByStudent[l.studentId]||0)+1;
+  });
+
+  c.innerHTML=`
+    <div class="card">
+      <div class="row between">
+        <div>
+          <h2>📕 Emprunts en cours</h2>
+          <p class="muted">
+            ${activeLoans.length} livre${activeLoans.length>1?'s':''} actuellement emprunté${activeLoans.length>1?'s':''}
+          </p>
+        </div>
+      </div>
+
+      ${
+        activeLoans.length
+        ? `
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Élève</th>
+                  <th>Livre</th>
+                  <th>Emprunté le</th>
+                  <th>Depuis</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${activeLoans.map(l=>{
+                  const s=state.students.find(x=>x.id===l.studentId);
+                  const b=state.books.find(x=>x.id===l.bookId);
+
+                  const borrowed=new Date(l.borrowedAt);
+                  const days=Math.max(
+                    0,
+                    Math.floor((Date.now()-borrowed.getTime())/86400000)
+                  );
+
+                  const studentName=s
+                    ? (s.name || s.firstName || 'Élève')
+                    : 'Élève inconnu';
+
+                  const title=b
+                    ? (b.title || 'Livre sans titre')
+                    : 'Livre introuvable';
+
+                  const cover=b?.cover
+                    ? `<img src="${esc(b.cover)}"
+                            alt=""
+                            style="width:45px;height:60px;object-fit:cover;border-radius:6px;margin-right:8px;">`
+                    : '';
+
+                  const warning=countByStudent[l.studentId]>1
+                    ? ` ⚠️ ${countByStudent[l.studentId]} prêts`
+                    : '';
+
+                  return `
+                    <tr>
+                      <td>
+                        <strong>${esc(studentName)}</strong>
+                        ${warning
+                          ? `<div style="margin-top:4px;"><span class="pill warn">${warning}</span></div>`
+                          : ''
+                        }
+                      </td>
+
+                      <td>
+                        <div class="row" style="align-items:center;">
+                          ${cover}
+                          <strong>${esc(title)}</strong>
+                        </div>
+                      </td>
+
+                      <td>
+                        ${borrowed.toLocaleDateString('fr-FR')}
+                      </td>
+
+                      <td>
+                        ${days===0
+                          ? "aujourd'hui"
+                          : `${days} jour${days>1?'s':''}`
+                        }
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `
+        : `<p>✅ Aucun emprunt en cours.</p>`
+      }
+    </div>
+  `;
 }
 function renderQuickSearch(){
   const c=$('#teacherContent');c.innerHTML=`<div class="card"><h2>🔎 Recherche rapide</h2><div class="searchbar"><input id="quickQ" placeholder="Titre, auteur, collection, thème, mot-clé, cote…" autofocus><select id="quickScope"><option value="all">Toute la bibliothèque</option><option value="active">Livres en classe</option><option value="reserve">Livres en réserve</option></select></div><div id="quickCount" class="muted"></div><div id="quickBooks" class="books"></div></div>`;
