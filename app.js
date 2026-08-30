@@ -663,16 +663,114 @@ async function startSingleAdd(){
   openScanner('Scanner le code-barres','Ajout détaillé',async code=>{await stopScanner();try{toast('Recherche du livre…');const found=await fetchBookByISBN(code);const existing=state.books.find(b=>b.isbn===found.isbn);if(existing){modal(`<h2>Exemplaire déjà catalogué</h2><p><strong>${esc(existing.title)}</strong></p><p>Il y a actuellement ${existing.copies||1} exemplaire(s).</p><div class="row"><button class="btn" id="addCopyBtn">Ajouter un exemplaire</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);$('#addCopyBtn').onclick=async()=>{existing.copies=Number(existing.copies||1)+1;await persist('book',existing);closeModal();toast('Exemplaire ajouté')};return}editBook({...found,id:uid()},true)}catch(e){alert('Livre non trouvé automatiquement. Tu peux le saisir manuellement.');editBook({id:uid(),isbn:code,title:'',authors:'',publisher:'',collection:'',type:'',summary:'',cover:'',keywords:[],owner:'classe',status:'reserve',copies:1,code:''},true)}})
 }
 async function startMultiAdd(){
-  const logs=[];openScanner('Inventaire rapide','Enchaîne les codes-barres. Aucun bouton à valider entre deux livres.',async code=>{
-    const now=Date.now();if(state.scanBusy)return;if(state.lastScan.code===code&&now-state.lastScan.at<1800)return;state.lastScan={code,at:now};state.scanBusy=true;
+  const logs=[];
+  const queue=[];
+  let processing=false;
+
+  const processQueue=async()=>{
+    if(processing || queue.length===0) return;
+
+    processing=true;
+
+    const code=queue.shift();
+
     try{
       const existing=state.books.find(b=>b.isbn===code);
-      if(existing){existing.copies=Number(existing.copies||1)+1;await persist('book',existing);logs.unshift({kind:'ok',text:`${code} — ${existing.title} — exemplaire n°${existing.copies}`});beep(true)}
-      else{const found=await fetchBookByISBN(code);if(!found.title){logs.unshift({kind:'bad',text:`${code} — non trouvé, à compléter`});const owner = $('#quickOwnerSelect')?.value || 'personnel';
-const b={...found,id:uid(),owner,needsReview:true};state.books.push(b);await persist('book',b);beep(false)}else{const owner = $('#quickOwnerSelect')?.value || 'personnel';
-const b={...found,id:uid(),owner,needsReview:false};state.books.push(b);await persist('book',b);logs.unshift({kind:'ok',text:`${code} — ${found.title}`});beep(true)}}
-    }catch(e){logs.unshift({kind:'bad',text:`${code} — erreur : ${e.message}`});beep(false)}finally{state.scanBusy=false;renderScanLog(logs)}
-  },true);renderScanLog(logs);
+
+      if(existing){
+        existing.copies=Number(existing.copies||1)+1;
+        await persist('book',existing);
+
+        logs.unshift({
+          kind:'ok',
+          text:`${code} – ${existing.title} – exemplaire n°${existing.copies}`
+        });
+
+        beep(true);
+      }else{
+        const found=await fetchBookByISBN(code);
+
+        const owner=$('#quickOwnerSelect')?.value || 'personnel';
+
+        if(!found.title){
+          logs.unshift({
+            kind:'bad',
+            text:`${code} – enregistré, mais à compléter`
+          });
+
+          const b={
+            ...found,
+            id:uid(),
+            owner,
+            needsReview:true
+          };
+
+          state.books.push(b);
+          await persist('book',b);
+          beep(false);
+
+        }else{
+          const b={
+            ...found,
+            id:uid(),
+            owner,
+            needsReview:false
+          };
+
+          state.books.push(b);
+          await persist('book',b);
+
+          logs.unshift({
+            kind:'ok',
+            text:`${code} – ${found.title}`
+          });
+
+          beep(true);
+        }
+      }
+    }catch(e){
+      logs.unshift({
+        kind:'bad',
+        text:`${code} – erreur : ${e.message}`
+      });
+
+      beep(false);
+    }finally{
+      processing=false;
+      renderScanLog(logs);
+      processQueue();
+    }
+  };
+
+  openScanner(
+    'Inventaire rapide',
+    'Enchaîne les codes-barres. Aucun bouton à valider entre deux livres.',
+    code=>{
+      const now=Date.now();
+
+      if(
+        state.lastScan.code===code &&
+        now-state.lastScan.at<1800
+      ){
+        return;
+      }
+
+      state.lastScan={code,at:now};
+
+      queue.push(code);
+
+      logs.unshift({
+        kind:'ok',
+        text:`${code} – scan reçu, en attente`
+      });
+
+      renderScanLog(logs);
+      processQueue();
+    },
+    true
+  );
+
+  renderScanLog(logs);
 }
 function beep(ok=true){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?880:220;g.gain.value=.04;o.start();setTimeout(()=>{o.stop();ctx.close()},100)}catch{}}
 
