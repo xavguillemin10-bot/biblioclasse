@@ -1309,7 +1309,7 @@ async function importData(e){const f=e.target.files?.[0];if(!f)return;try{const 
 function renderStudent(){
   appEl.innerHTML=`<div class="app">${topbar()}<div class="card hero"><div class="row between"><div><h2>👦 Espace élèves</h2><p class="muted">Simple et rapide : prénom → scan → terminé.</p></div></div><div class="grid"><div class="tile" id="borrowTile"><strong>📚 J’emprunte</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="returnTile"><strong>📖 Je rends</strong><span>Choisir mon prénom puis scanner le code-barres.</span></div><div class="tile" id="studentSearchTile"><strong>🔍 Je cherche un livre</strong><span>Voir seulement les livres actuellement mis en classe.</span></div><div class="tile" id="profileTile"><strong>✨ Mon profil lecteur</strong><span>Mes goûts et mon appétit de lecture.</span></div></div></div></div>`;bindTop();$('#borrowTile').onclick=()=>chooseStudentFor('borrow');$('#returnTile').onclick=()=>chooseStudentFor('return');$('#studentSearchTile').onclick=studentSearch;$('#profileTile').onclick=()=>chooseStudentFor('profile');
 }
-function chooseStudentFor(action){const students=state.students.filter(s=>s.active!==false);if(!students.length)return alert('Aucun élève actif.');modal(`<h2>${action==='borrow'?'J’emprunte':action==='return'?'Je rends':'Mon profil lecteur'}</h2><p>Choisis ton prénom.</p><div class="student-list">${students.map(s=>`<button class="student-btn" data-pick-student="${s.id}">${esc(s.name)}</button>`).join('')}</div><div style="margin-top:12px"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);document.querySelectorAll('[data-pick-student]').forEach(b=>b.onclick=()=>{const id=b.dataset.pickStudent;closeModal();if(action==='profile')return editStudentProfile(id);startLoanScan(action,id)})}
+function chooseStudentFor(action){const students=state.students.filter(s=>s.active!==false);if(!students.length)return alert('Aucun élève actif.');modal(`<h2>${action==='borrow'?'J’emprunte':action==='return'?'Je rends':'Mon profil lecteur'}</h2><p>Choisis ton prénom.</p><div class="student-list">${students.map(s=>`<button class="student-btn" data-pick-student="${s.id}">${esc(s.name)}</button>`).join('')}</div><div style="margin-top:12px"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);document.querySelectorAll('[data-pick-student]').forEach(b=>b.onclick=()=>{const id=b.dataset.pickStudent;closeModal();if(action==='profile')return studentReaderSpace(id);startLoanScan(action,id)})}
 async function startLoanScan(action,studentId){
   openScanner(
     action==='borrow'
@@ -1447,6 +1447,121 @@ async function startLoanScan(action,studentId){
 }
 function successAndReturn(msg){modal(`<div class="success-screen">✅<br>${esc(msg)}</div>`);setTimeout(()=>{closeModal();renderStudent()},1500)}
 function studentSearch(){const books=state.books.filter(b=>b.status==='active'&&availability(b).free>0);modal(`<h2>🔍 Livres disponibles en classe</h2><div class="field"><input id="studentSearchQ" placeholder="animaux, aventure, Max et Lili…"></div><div id="studentSearchBooks" class="books"></div><button class="btn btn-secondary" onclick="closeModal()">Fermer</button>`);const run=()=>{const q=norm($('#studentSearchQ').value);const r=books.filter(b=>!q||norm([b.title,b.authors,b.collection,b.summary,(b.keywords||[]).join(' ')].join(' ')).includes(q));$('#studentSearchBooks').innerHTML=r.map(bookCard).join('')};$('#studentSearchQ').oninput=run;run()}
+function studentReaderSpace(studentId){
+  const student=state.students.find(s=>s.id===studentId);
+  if(!student) return;
+
+  const loans=state.loans
+    .filter(l=>l.studentId===studentId)
+    .sort((a,b)=>new Date(b.borrowedAt)-new Date(a.borrowedAt));
+
+  const currentLoans=loans.filter(l=>!l.returnedAt);
+  const history=loans.filter(l=>l.returnedAt);
+
+  const bookView=(loan,isHistory=false)=>{
+    const b=state.books.find(x=>x.id===loan.bookId);
+    if(!b) return '';
+
+    const borrowed=new Date(loan.borrowedAt).toLocaleDateString('fr-FR');
+
+    const returned=loan.returnedAt
+      ? new Date(loan.returnedAt).toLocaleDateString('fr-FR')
+      : '';
+
+    return `
+      <div style="
+        display:flex;
+        gap:14px;
+        align-items:center;
+        padding:12px 0;
+        border-bottom:1px solid #eee;
+        ${isHistory?'opacity:.55;':''}
+      ">
+        ${
+          b.cover
+            ? `<img
+                src="${esc(b.cover)}"
+                alt=""
+                style="
+                  width:65px;
+                  height:90px;
+                  object-fit:cover;
+                  border-radius:8px;
+                "
+              >`
+            : `<div style="
+                width:65px;
+                height:90px;
+                background:#eee;
+                border-radius:8px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:30px;
+              ">📕</div>`
+        }
+
+        <div>
+          <strong>${esc(b.title || 'Livre sans titre')}</strong>
+
+          <div class="muted" style="margin-top:6px;">
+            Emprunté le ${borrowed}
+          </div>
+
+          ${
+            returned
+              ? `<div class="muted">Rendu le ${returned}</div>`
+              : `<div style="margin-top:6px;"><strong>📖 Lecture en cours</strong></div>`
+          }
+        </div>
+      </div>
+    `;
+  };
+
+  modal(`
+    <div>
+      <h2>✨ Mon espace lecteur</h2>
+      <h3>${esc(student.name || student.firstName || 'Élève')}</h3>
+
+      <div style="margin-top:20px;">
+        <h3>📖 Je lis actuellement</h3>
+
+        ${
+          currentLoans.length
+            ? currentLoans.map(l=>bookView(l,false)).join('')
+            : `<p class="muted">Tu n’as pas de livre emprunté actuellement.</p>`
+        }
+      </div>
+
+      <div style="margin-top:25px;">
+        <h3>📚 Mes lectures précédentes</h3>
+
+        ${
+          history.length
+            ? history.map(l=>bookView(l,true)).join('')
+            : `<p class="muted">Aucune lecture terminée pour le moment.</p>`
+        }
+      </div>
+
+      <div class="row" style="margin-top:25px;">
+        <button class="btn" id="editReaderProfileBtn">
+          ❤️ Mes goûts de lecture
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          onclick="closeModal()">
+          Fermer
+        </button>
+      </div>
+    </div>
+  `);
+
+  $('#editReaderProfileBtn').onclick=()=>{
+    closeModal();
+    editStudentProfile(studentId);
+  };
+}
 function editStudentProfile(studentId){const s=state.students.find(x=>x.id===studentId);if(!s)return;modal(`<h2>✨ Mon profil lecteur — ${esc(s.name)}</h2><p>Mes centres d’intérêt peuvent changer pendant l’année.</p><div class="field"><label>Ce que j’aime</label><input id="profileInterests" value="${esc((s.interests||[]).join(', '))}" placeholder="animaux, sport, humour, enquêtes…"></div><div class="field"><label>Mon appétit de lecture</label><select id="profileAppetite"><option value="">Je ne sais pas encore</option><option value="grignote" ${s.appetite==='grignote'?'selected':''}>🐭 Je grignote de temps en temps</option><option value="regulier" ${s.appetite==='regulier'?'selected':''}>🐰 J’aime bien lire</option><option value="faim" ${s.appetite==='faim'?'selected':''}>🐺 J’ai souvent faim de livres</option><option value="ogre" ${s.appetite==='ogre'?'selected':''}>🦖 Je suis un ogre de lecture</option></select></div><div class="row"><button class="btn" id="saveProfileBtn">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);$('#saveProfileBtn').onclick=async()=>{s.interests=$('#profileInterests').value.split(',').map(x=>x.trim()).filter(Boolean);s.appetite=$('#profileAppetite').value;await persist('student',s);closeModal();toast('Profil enregistré')}}
 
 async function boot(){
