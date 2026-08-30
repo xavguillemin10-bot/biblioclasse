@@ -1165,10 +1165,12 @@ async function startLoanScan(action,studentId){
       : '↩️ Scanner le livre rendu',
     'Le code-barres ISBN au dos du livre.',
     async code=>{
-      if(state.scanBusy) return;
-      state.scanBusy=true;
+  if(state.scanBusy) return;
+  state.scanBusy=true;
 
-      try{
+  await stopScanner();
+
+  try{
         const b=state.books.find(
           x=>x.isbn===code || x.code===code
         );
