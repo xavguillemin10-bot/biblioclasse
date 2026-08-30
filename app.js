@@ -452,7 +452,56 @@ try{
   }catch(e){
     console.warn('Google Books:',e);
   }
+// 1b) Google Books - recherche complémentaire par titre + auteur
+// Utile lorsqu'une fiche ISBN existe mais ne contient pas de résumé
+if(data.title && (!data.summary || data.subjects.length===0)){
+  try{
+    const q=[
+      `intitle:"${data.title}"`,
+      data.authors ? `inauthor:"${data.authors}"` : ''
+    ].filter(Boolean).join('+');
 
+    const r=await fetch(
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=fr&maxResults=10`
+    );
+
+    if(r.ok){
+      const j=await r.json();
+
+      const candidates=(j.items||[])
+        .map(item=>item.volumeInfo)
+        .filter(Boolean);
+
+      // Chercher en priorité une fiche ayant un résumé
+      const best=
+        candidates.find(v=>v.description && v.description.length>80) ||
+        candidates[0];
+
+      if(best){
+        if(!data.summary && best.description){
+          data.summary=best.description;
+        }
+
+        if(Array.isArray(best.categories)){
+          data.subjects.push(...best.categories);
+        }
+
+        if(!data.cover){
+          data.cover=
+            best.imageLinks?.thumbnail ||
+            best.imageLinks?.smallThumbnail ||
+            data.cover;
+        }
+
+        if(!data.publisher && best.publisher){
+          data.publisher=best.publisher;
+        }
+      }
+    }
+  }catch(e){
+    console.warn('Google Books titre/auteur:',e);
+  }
+}
   // 2) Open Library - édition + œuvre
 try{
   const r=await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
