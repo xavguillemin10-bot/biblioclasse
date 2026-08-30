@@ -927,7 +927,10 @@ async function startMultiAdd(){
 }
 function beep(ok=true){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?880:220;g.gain.value=.04;o.start();setTimeout(()=>{o.stop();ctx.close()},100)}catch{}}
 
-async function openScanner(title,subtitle,handler,multi=false){
+async function openScanner(title,subtitle,handler,multi=false){ 
+  await stopScanner();
+state.scanBusy=false;
+  
   state.scanHandler=handler;
   
   const ownerRow=$('#quickOwnerRow');
