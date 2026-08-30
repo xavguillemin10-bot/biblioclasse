@@ -1187,11 +1187,14 @@ async function startLoanScan(action,studentId){
           // 1 — Un livre en réserve ne peut pas être emprunté par l’élève
           if(b.status!=='active'){
             beep(false);
-            return alert(
-              `📦 Ce livre n’est pas disponible actuellement.\n\n` +
-              `${b.title || 'Ce livre'} est rangé dans la réserve de la bibliothèque.\n\n` +
-              `👉 Va voir la maîtresse si tu souhaites l’emprunter.`
-            );
+            alert(
+  `📦 Ce livre n’est pas disponible actuellement.\n\n` +
+  `${b.title || 'Ce livre'} est rangé dans la réserve de la bibliothèque.\n\n` +
+  `👉 Va voir la maîtresse si tu souhaites l’emprunter.`
+);
+
+renderStudent();
+return;
           }
 
           // 2 — Vérification de la disponibilité réelle du livre
@@ -1208,12 +1211,14 @@ async function startLoanScan(action,studentId){
               ? state.students.find(s=>s.id===currentLoan.studentId)
               : null;
 
-            return alert(
-              borrower
-                ? `📕 Ce livre est déjà emprunté par ${borrower.name || borrower.firstName}.`
-                : `📕 Aucun exemplaire de ce livre n’est disponible actuellement.`
-            );
-          }
+            alert(
+  borrower
+    ? `📕 Ce livre est déjà emprunté par ${borrower.name || borrower.firstName}.`
+    : `📕 Aucun exemplaire de ce livre n’est disponible actuellement.`
+);
+
+renderStudent();
+return;
 
           // 3 — Vérification des prêts déjà en cours pour cet élève
           const currentLoans=state.loans.filter(
