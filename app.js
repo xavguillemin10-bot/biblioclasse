@@ -928,7 +928,14 @@ async function startMultiAdd(){
 function beep(ok=true){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?880:220;g.gain.value=.04;o.start();setTimeout(()=>{o.stop();ctx.close()},100)}catch{}}
 
 async function openScanner(title,subtitle,handler,multi=false){
-  state.scanHandler=handler;state.scanMode=multi?'multi':'single';$('#scannerTitle').textContent=title;$('#scannerSubtitle').textContent=subtitle||'';$('#scannerOverlay').classList.remove('hidden');$('#scannerOverlay').setAttribute('aria-hidden','false');$('#scanLog').innerHTML='';
+  state.scanHandler=handler;
+  
+  const ownerRow=$('#quickOwnerRow');
+if(ownerRow){
+  ownerRow.style.display=multi?'block':'none';
+}
+ 
+  state.scanMode=multi?'multi':'single';$('#scannerTitle').textContent=title;$('#scannerSubtitle').textContent=subtitle||'';$('#scannerOverlay').classList.remove('hidden');$('#scannerOverlay').setAttribute('aria-hidden','false');$('#scanLog').innerHTML='';
   $('#closeScannerBtn').onclick=()=>stopScanner();$('#manualScanBtn').onclick=()=>{const v=$('#manualScanInput').value.trim();if(v){$('#manualScanInput').value='';handler(v)}};$('#manualScanInput').onkeydown=e=>{if(e.key==='Enter')$('#manualScanBtn').click()};
   try{
     state.scanner=new Html5Qrcode('reader');
