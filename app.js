@@ -1428,15 +1428,64 @@ async function startLoanScan(action,studentId){
             );
           }
 
-          loan.returnedAt=nowIso();
-          await persist('loan',loan);
+         loan.returnedAt=nowIso();
+await persist('loan',loan);
 
-          beep(true);
-          await stopScanner();
+beep(true);
+await stopScanner();
 
-          successAndReturn(
-            `Merci, livre rendu ! 📗\n${b.title || ''}`
-          );
+modal(`
+  <div>
+    <h2>⭐ Tu as aimé ce livre ?</h2>
+
+    <p>
+      ${esc(b.title || 'Ce livre')}
+    </p>
+
+    <div
+      id="ratingStars"
+      style="
+        font-size:42px;
+        letter-spacing:6px;
+        margin:20px 0;
+        cursor:pointer;
+      "
+    >
+      <span data-rating="1">☆</span>
+      <span data-rating="2">☆</span>
+      <span data-rating="3">☆</span>
+      <span data-rating="4">☆</span>
+      <span data-rating="5">☆</span>
+    </div>
+
+    <div class="row">
+      <button
+        class="btn btn-secondary"
+        id="skipRatingBtn">
+        Pas maintenant
+      </button>
+    </div>
+  </div>
+`);
+
+document.querySelectorAll('[data-rating]').forEach(star=>{
+  star.onclick=async()=>{
+    const rating=Number(star.dataset.rating);
+
+    loan.rating=rating;
+    await persist('loan',loan);
+
+    closeModal();
+    successAndReturn(
+      `Merci ! Tu as donné ${rating} étoile${rating>1?'s':''} ⭐`
+    );
+  };
+});
+
+$('#skipRatingBtn').onclick=()=>{
+  closeModal();
+  successAndReturn('Merci, livre rendu !');
+};
         }
 
       }finally{
