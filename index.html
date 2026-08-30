@@ -26,6 +26,14 @@
         <button class="btn btn-secondary" id="closeScannerBtn">Fermer</button>
       </div>
       <div id="reader"></div>
+<div id="quickOwnerRow" style="margin:16px 0;">
+  <label for="quickOwnerSelect"><strong>Propriétaire de cette série</strong></label>
+  <select id="quickOwnerSelect" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;">
+    <option value="teacher">Personnel enseignant</option>
+    <option value="classe">Bibliothèque de classe</option>
+    <option value="ecole">Bibliothèque de l’école</option>
+  </select>
+</div>
       <div class="manual-scan">
         <input id="manualScanInput" inputmode="numeric" placeholder="Saisir l’ISBN si besoin" />
         <button class="btn" id="manualScanBtn">Valider</button>
