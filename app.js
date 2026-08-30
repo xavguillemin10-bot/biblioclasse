@@ -587,11 +587,65 @@ try{
   data.collection=data.collection||detectCollection(data.title);
   data.type=data.type||guessType(data.subjects,data.title);
 
-  // Mots-clés automatiques
+// Enrichissement par le Worker Cloudflare
+try{
+  const r=await fetch(
+    'https://biblioclasse-enrichissement.xav-guillemin10.workers.dev/',
+    {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({
+        isbn:data.isbn,
+        title:data.title,
+        authors:data.authors,
+        publisher:data.publisher,
+        summary:data.summary,
+        collection:data.collection,
+        type:data.type,
+        subjects:data.subjects
+      })
+    }
+  );
+
+  if(r.ok){
+    const result=await r.json();
+    const enriched=result.book;
+
+    if(enriched){
+      if(enriched.summary){
+        data.summary=enriched.summary;
+      }
+
+      if(enriched.collection){
+        data.collection=enriched.collection;
+      }
+
+      if(enriched.type){
+        data.type=enriched.type;
+      }
+
+      if(Array.isArray(enriched.keywords) && enriched.keywords.length){
+        data.keywords=enriched.keywords;
+      }
+
+      data.needsReview=Boolean(enriched.needsReview);
+    }
+  }
+}catch(e){
+  console.warn('Enrichissement IA:',e);
+}
+
+// Sécurité : mots-clés locaux si l'IA n'en a pas fourni
+if(!Array.isArray(data.keywords) || data.keywords.length===0){
   data.keywords=suggestKeywords({
     ...data,
     subjects:data.subjects
   });
+
+  data.needsReview=true;
+}
 
   return data;
 }
