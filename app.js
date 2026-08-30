@@ -1176,11 +1176,12 @@ async function startLoanScan(action,studentId){
         );
 
         if(!b){
-          beep(false);
-          return alert(
-            'Ce livre n’est pas encore enregistré dans BiblioClasse.'
-          );
-        }
+  beep(false);
+  return alert(
+    `Ce livre n’est pas encore enregistré dans BiblioClasse.\n\n` +
+    `Code lu : ${code}`
+  );
+}
 
         if(action==='borrow'){
 
