@@ -1143,7 +1143,20 @@ if(ownerRow){
     state.scanner=new Html5Qrcode('reader');
     const cameras=await Html5Qrcode.getCameras();
     const preferred=cameras.find(c=>/back|rear|environment|arrière/i.test(c.label))?.id||cameras[cameras.length-1]?.id;
-    await state.scanner.start(preferred||{facingMode:'environment'},{fps:10,qrbox:{width:Math.min(320,window.innerWidth-60),height:130},formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8]},decoded=>handler(decoded),()=>{});
+   await state.scanner.start(
+  preferred||{facingMode:'environment'},
+  {
+    fps:15,
+    qrbox:{
+      width:Math.min(320,window.innerWidth-60),
+      height:130
+    },
+    formatsToSupport:[
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8
+    ]
+  },
+                              decoded=>handler(decoded),()=>{});
   }catch(e){console.error(e);$('#reader').innerHTML=`<div class="danger-note">Caméra indisponible. Vérifie l’autorisation de la caméra ou utilise la saisie manuelle.<br><span class="small">${esc(e.message||e)}</span></div>`}
 }
 function renderScanLog(logs){const el=$('#scanLog');if(!el)return;el.innerHTML=logs.slice(0,30).map(x=>`<div class="scan-item ${x.kind}">${esc(x.text)}</div>`).join('')}
