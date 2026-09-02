@@ -207,18 +207,73 @@ function teacherTabs(){
 function renderReview(){
   const el=$('#teacherContent');
 
+  const pending=state.books
+    .filter(b=>b.reviewStatus==='pending')
+    .sort((a,b)=>
+      new Date(b.scannedAt||0)-new Date(a.scannedAt||0)
+    );
+
   el.innerHTML=`
     <div class="card">
       <h2>📥 Livres à vérifier</h2>
 
       <p class="muted">
-        Les livres scannés lors de l'inventaire rapide apparaîtront ici
-        avant leur intégration définitive dans la bibliothèque.
+        Les livres scannés lors de l'inventaire rapide restent ici
+        jusqu'à leur validation.
       </p>
 
-      <div class="empty">
-        Aucun livre à vérifier pour le moment.
-      </div>
+      <p>
+        <strong>${pending.length} livre${pending.length>1?'s':''} à vérifier</strong>
+      </p>
+
+      ${
+        pending.length===0
+        ? `<div class="empty">
+             Aucun livre à vérifier pour le moment.
+           </div>`
+        : `
+          <div class="book-grid">
+            ${pending.map(book=>`
+              <div class="book-card">
+
+                ${
+                  book.cover
+                  ? `<img
+                       src="${esc(book.cover)}"
+                       alt=""
+                       class="cover"
+                     >`
+                  : `<div class="cover placeholder">📕</div>`
+                }
+
+                <div>
+                  <strong>${esc(book.title||'Titre à compléter')}</strong>
+                </div>
+
+                <div class="small">
+                  ${esc(book.author||'Auteur inconnu')}
+                </div>
+
+                <div class="small">
+                  ISBN : ${esc(book.isbn||'—')}
+                </div>
+
+                <div class="small">
+                  Exemplaire${Number(book.copies||1)>1?'s':''} :
+                  ${Number(book.copies||1)}
+                </div>
+
+                ${
+                  book.needsReview
+                  ? `<div class="pill warning">⚠️ Fiche à compléter</div>`
+                  : `<div class="pill">👀 À contrôler</div>`
+                }
+
+              </div>
+            `).join('')}
+          </div>
+        `
+      }
     </div>
   `;
 }
@@ -1029,23 +1084,26 @@ initBeep();
           });
 
           const b={
-            ...found,
-            id:uid(),
-            owner,
-            needsReview:true
-          };
-
+  ...found,
+  id:uid(),
+  owner,
+  needsReview:true,
+  reviewStatus:'pending',
+  scannedAt:nowIso()
+};
           state.books.push(b);
           await persist('book',b);
           beep(false);
 
         }else{
           const b={
-            ...found,
-            id:uid(),
-            owner,
-            needsReview:false
-          };
+  ...found,
+  id:uid(),
+  owner,
+  needsReview:false,
+  reviewStatus:'pending',
+  scannedAt:nowIso()
+};
 
           state.books.push(b);
           await persist('book',b);
