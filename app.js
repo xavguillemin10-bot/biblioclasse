@@ -188,6 +188,7 @@ function openTeacher(){if(state.teacherUnlocked){state.screen='teacher';render()
 function teacherTabs(){
   const tabs=[
     ['library','📚 Bibliothèque'],
+    ['review','📥 À vérifier'],
     ['search','🔎 Recherche rapide'],
     ['add','➕ Ajouter'],
     ['students','🧒 Élèves'],
@@ -203,6 +204,24 @@ function teacherTabs(){
     ).join('')}
   </div>`;
 }
+function renderReview(){
+  const el=$('#teacherContent');
+
+  el.innerHTML=`
+    <div class="card">
+      <h2>📥 Livres à vérifier</h2>
+
+      <p class="muted">
+        Les livres scannés lors de l'inventaire rapide apparaîtront ici
+        avant leur intégration définitive dans la bibliothèque.
+      </p>
+
+      <div class="empty">
+        Aucun livre à vérifier pour le moment.
+      </div>
+    </div>
+  `;
+}
 function renderTeacher(){
   appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;
 
@@ -216,15 +235,16 @@ function renderTeacher(){
   });
 
   ({
-    library:renderLibrary,
-    search:renderQuickSearch,
-    add:renderAdd,
-    students:renderStudents,
-    periods:renderPeriods,
-    loans:renderLoans,
-    codes:renderCodes,
-    settings:renderSettings
-  }[state.teacherTab] || renderLibrary)();
+  library:renderLibrary,
+  review:renderReview,
+  search:renderQuickSearch,
+  add:renderAdd,
+  students:renderStudents,
+  periods:renderPeriods,
+  loans:renderLoans,
+  codes:renderCodes,
+  settings:renderSettings
+}[state.teacherTab] || renderLibrary)();
 }
 
 function availability(book){const out=state.loans.filter(l=>l.bookId===book.id&&!l.returnedAt).length;const copies=Number(book.copies||1);return {out,copies,free:Math.max(0,copies-out)}}
