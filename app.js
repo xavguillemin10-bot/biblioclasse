@@ -367,9 +367,11 @@ function renderLibrary(){
     const s=$('#libStatus').value;
 
     visibleBooks=state.books.filter(
-      b=>(!o||b.owner===o)&&(!s||b.status===s)
-    );
-
+  b=>
+    b.reviewStatus!=='pending' &&
+    (!o||b.owner===o) &&
+    (!s||b.status===s)
+);
     $('#libraryBooks').innerHTML=visibleBooks.length
       ? visibleBooks.map(b=>`
           <div style="position:relative;">
