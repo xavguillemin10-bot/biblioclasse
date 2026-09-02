@@ -283,7 +283,7 @@ function renderReview(){
     const book=pending[index];
 
     if(book){
-      editBook(book.id);
+      editBook(book);
     }
   };
 });
