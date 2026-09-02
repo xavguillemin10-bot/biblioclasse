@@ -232,38 +232,17 @@ function renderReview(){
              Aucun livre à vérifier pour le moment.
            </div>`
         : `
-          <div
-  class="book-grid"
-  style="
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-    gap:16px;
-  "
->
+          <div class="book-grid">
             ${pending.map(book=>`
-              <div
-  class="book-card"
-  style="
-    padding:12px;
-    border:1px solid #e5e5e5;
-    border-radius:14px;
-    background:white;
-  "
->
+              <div class="book-card">
 
                 ${
                   book.cover
                   ? `<img
-  src="${esc(book.cover)}"
-  alt=""
-  style="
-    width:100%;
-    max-height:260px;
-    object-fit:contain;
-    border-radius:10px;
-    background:#f7f7f7;
-  "
->
+                       src="${esc(book.cover)}"
+                       alt=""
+                       class="cover"
+                     >`
                   : `<div class="cover placeholder">📕</div>`
                 }
 
