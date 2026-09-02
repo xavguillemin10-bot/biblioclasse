@@ -1323,6 +1323,20 @@ if(!isNew && book.reviewStatus==='pending'){
     );
   }
 }
+const validateBtn=$('#validateBookBtn');
+
+if(validateBtn){
+  validateBtn.onclick=async()=>{
+    book.reviewStatus='validated';
+    book.updatedAt=nowIso();
+
+    await persist('book',book);
+
+    closeModal();
+    toast('Livre ajouté à la bibliothèque');
+    renderTeacher();
+  };
+}
   $('#saveBookBtn').onclick=async()=>{
   const obj={
     ...book,
