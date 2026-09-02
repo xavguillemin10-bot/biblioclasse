@@ -973,6 +973,7 @@ async function startSingleAdd(){
   openScanner('Scanner le code-barres','Ajout détaillé',async code=>{await stopScanner();try{toast('Recherche du livre…');const found=await fetchBookByISBN(code);const existing=state.books.find(b=>b.isbn===found.isbn);if(existing){modal(`<h2>Exemplaire déjà catalogué</h2><p><strong>${esc(existing.title)}</strong></p><p>Il y a actuellement ${existing.copies||1} exemplaire(s).</p><div class="row"><button class="btn" id="addCopyBtn">Ajouter un exemplaire</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button></div>`);$('#addCopyBtn').onclick=async()=>{existing.copies=Number(existing.copies||1)+1;await persist('book',existing);closeModal();toast('Exemplaire ajouté')};return}editBook({...found,id:uid()},true)}catch(e){alert('Livre non trouvé automatiquement. Tu peux le saisir manuellement.');editBook({id:uid(),isbn:code,title:'',authors:'',publisher:'',collection:'',type:'',summary:'',cover:'',keywords:[],owner:'classe',status:'reserve',copies:1,code:''},true)}})
 }
 async function startMultiAdd(){
+initBeep();
   const logs=[];
   const queue=[];
   let processing=false;
@@ -1083,26 +1084,42 @@ queue.push(code);
 
   renderScanLog(logs);
 }
-function beep(ok=true){
+let beepCtx=null;
+
+function initBeep(){
   try{
     const AudioCtx=window.AudioContext||window.webkitAudioContext;
-    const ctx=new AudioCtx();
 
-    const o=ctx.createOscillator();
-    const g=ctx.createGain();
+    if(!beepCtx){
+      beepCtx=new AudioCtx();
+    }
+
+    if(beepCtx.state==='suspended'){
+      beepCtx.resume();
+    }
+  }catch(e){
+    console.log('Initialisation audio impossible',e);
+  }
+}
+
+function beep(ok=true){
+  try{
+    if(!beepCtx) initBeep();
+    if(!beepCtx) return;
+
+    const o=beepCtx.createOscillator();
+    const g=beepCtx.createGain();
 
     o.connect(g);
-    g.connect(ctx.destination);
+    g.connect(beepCtx.destination);
 
     o.frequency.value=ok ? 1000 : 250;
     g.gain.value=.18;
 
-    o.start();
+    const t=beepCtx.currentTime;
 
-    setTimeout(()=>{
-      o.stop();
-      ctx.close();
-    },180);
+    o.start(t);
+    o.stop(t+0.12);
 
   }catch(e){
     console.log('Bip impossible',e);
