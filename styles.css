@@ -15,18 +15,24 @@
 @media(max-width:720px){.app{padding:10px}.topbar{align-items:flex-start}.brand h1{font-size:22px}.books{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}.searchbar{grid-template-columns:1fr}.card{padding:14px}.manual-scan{grid-template-columns:1fr}.btn{min-height:44px}}
 /* Cartes de l'espace "À vérifier" */
 #teacherContent .book-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,130px);
-  gap:12px;
-  align-items:start;
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,120px) !important;
+  gap:10px !important;
+  align-items:start !important;
+  justify-content:start !important;
 }
 
 #teacherContent .book-card{
-  width:130px;
+  width:120px !important;
+  max-width:120px !important;
 }
 
-#teacherContent .book-card .cover{
-  width:130px;
-  height:180px;
-  object-fit:contain;
+#teacherContent .book-card img.cover{
+  width:120px !important;
+  height:170px !important;
+  max-width:120px !important;
+  max-height:170px !important;
+  aspect-ratio:auto !important;
+  object-fit:contain !important;
+  padding:4px !important;
 }
