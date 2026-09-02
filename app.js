@@ -398,6 +398,35 @@ function renderReview(){
 
         if(!book) return;
 
+        const missing=[];
+
+        if(!book.type){
+          missing.push('type');
+        }
+
+        if(!book.summary || !book.summary.trim()){
+          missing.push('résumé');
+        }
+
+        if(
+          book.collection &&
+          !book.collectionNumber &&
+          !book.collectionHS
+        ){
+          missing.push('numéro de collection');
+        }
+
+        if(missing.length){
+          const message=
+            `⚠️ Cette fiche est incomplète.\n\n` +
+            `À compléter : ${missing.join(', ')}.\n\n` +
+            `Voulez-vous quand même valider ce livre ?`;
+
+          if(!confirm(message)){
+            return;
+          }
+        }
+
         book.reviewStatus='validated';
         book.updatedAt=nowIso();
 
