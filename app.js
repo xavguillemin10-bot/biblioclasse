@@ -1082,7 +1082,31 @@ async function startMultiAdd(){
 
   renderScanLog(logs);
 }
-function beep(ok=true){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?880:220;g.gain.value=.04;o.start();setTimeout(()=>{o.stop();ctx.close()},100)}catch{}}
+function beep(ok=true){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AudioCtx();
+
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+
+    o.connect(g);
+    g.connect(ctx.destination);
+
+    o.frequency.value=ok ? 1000 : 250;
+    g.gain.value=.18;
+
+    o.start();
+
+    setTimeout(()=>{
+      o.stop();
+      ctx.close();
+    },180);
+
+  }catch(e){
+    console.log('Bip impossible',e);
+  }
+}
 
 async function openScanner(title,subtitle,handler,multi=false){ 
   await stopScanner();
