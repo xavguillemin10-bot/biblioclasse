@@ -223,35 +223,49 @@ function renderReview(){
       </p>
 
       <p>
-        <strong>${pending.length} livre${pending.length>1?'s':''} à vérifier</strong>
+        <strong>
+          ${pending.length} livre${pending.length>1?'s':''} à vérifier
+        </strong>
       </p>
 
       ${
         pending.length===0
-        ? `<div class="empty">
-             Aucun livre à vérifier pour le moment.
-           </div>`
+        ? `
+          <div class="empty">
+            Aucun livre à vérifier pour le moment.
+          </div>
+        `
         : `
           <div class="book-grid">
+
             ${pending.map(book=>`
-              <div class="book-card">
+              <div
+                class="book-card"
+                data-review-book="${book.id}"
+              >
 
                 ${
                   book.cover
-                  ? `<img
-                       src="${esc(book.cover)}"
-                       alt=""
-                       class="cover"
-                     >`
-                  : `<div class="cover placeholder">📕</div>`
+                  ? `
+                    <img
+                      src="${esc(book.cover)}"
+                      alt=""
+                      class="cover"
+                    >
+                  `
+                  : `
+                    <div class="cover placeholder">📕</div>
+                  `
                 }
 
                 <div>
-                  <strong>${esc(book.title||'Titre à compléter')}</strong>
+                  <strong>
+                    ${esc(book.title||'Titre à compléter')}
+                  </strong>
                 </div>
 
                 <div class="small">
-                 ${esc(book.authors||book.author||'Auteur inconnu')}
+                  ${esc(book.authors||book.author||'Auteur inconnu')}
                 </div>
 
                 <div class="small">
@@ -262,55 +276,137 @@ function renderReview(){
                   Exemplaire${Number(book.copies||1)>1?'s':''} :
                   ${Number(book.copies||1)}
                 </div>
-<div class="small">
-  Collection :
-  ${esc(book.collection||'—')}
-  ${book.collectionNumber ? ` · n° ${book.collectionNumber}` : ''}
-</div>
 
-<div class="small">
-  Type : ${esc(TYPES[book.type]||'À définir')}
-</div>
+                <div class="small">
+                  Collection :
+                  ${esc(book.collection||'—')}
+                  ${
+                    book.collectionNumber
+                    ? ` · n° ${book.collectionNumber}`
+                    : ''
+                  }
+                </div>
 
-<div class="small" style="margin-top:6px;">
-  <strong>Résumé :</strong>
-  ${
-    book.summary
-      ? esc(
-          book.summary
-            .split(/\s+/)
-            .slice(0,18)
-            .join(' ') +
-          (book.summary.split(/\s+/).length>18 ? '…' : '')
-        )
-      : 'à compléter'
-  }
-</div>
+                <div class="small">
+                  Type : ${esc(TYPES[book.type]||'À définir')}
+                </div>
+
+                <div class="small" style="margin-top:6px;">
+                  <strong>Résumé :</strong>
+                  ${
+                    book.summary
+                    ? esc(
+                        book.summary
+                          .split(/\s+/)
+                          .slice(0,18)
+                          .join(' ') +
+                        (
+                          book.summary.split(/\s+/).length>18
+                          ? '…'
+                          : ''
+                        )
+                      )
+                    : 'à compléter'
+                  }
+                </div>
 
                 ${
                   book.needsReview
-                  ? `<div class="pill warning">⚠️ Fiche à compléter</div>`
-                  : `<div class="pill">👀 À contrôler</div>`
+                  ? `
+                    <div class="pill warn">
+                      ⚠️ Fiche à compléter
+                    </div>
+                  `
+                  : `
+                    <div class="pill">
+                      👀 À contrôler
+                    </div>
+                  `
                 }
+
+                <div
+                  class="row"
+                  style="margin-top:8px;gap:6px;"
+                >
+                  <button
+                    class="btn btn-secondary review-edit-btn"
+                    data-id="${book.id}"
+                    style="padding:7px 9px;font-size:12px;"
+                  >
+                    ✏️ Modifier
+                  </button>
+
+                  <button
+                    class="btn btn-ok review-validate-btn"
+                    data-id="${book.id}"
+                    style="padding:7px 9px;font-size:12px;"
+                  >
+                    ✅ Valider
+                  </button>
+                </div>
 
               </div>
             `).join('')}
+
           </div>
         `
       }
     </div>
   `;
-  document.querySelectorAll('#teacherContent .book-card').forEach((card,index)=>{
-  card.style.cursor='pointer';
 
-  card.onclick=()=>{
-    const book=pending[index];
+  document
+    .querySelectorAll('[data-review-book]')
+    .forEach(card=>{
+      card.style.cursor='pointer';
 
-    if(book){
-      editBook(book);
-    }
-  };
-});
+      card.onclick=()=>{
+        const book=state.books.find(
+          b=>b.id===card.dataset.reviewBook
+        );
+
+        if(book){
+          editBook(book);
+        }
+      };
+    });
+
+  document
+    .querySelectorAll('.review-edit-btn')
+    .forEach(btn=>{
+      btn.onclick=e=>{
+        e.stopPropagation();
+
+        const book=state.books.find(
+          b=>b.id===btn.dataset.id
+        );
+
+        if(book){
+          editBook(book);
+        }
+      };
+    });
+
+  document
+    .querySelectorAll('.review-validate-btn')
+    .forEach(btn=>{
+      btn.onclick=async e=>{
+        e.stopPropagation();
+
+        const book=state.books.find(
+          b=>b.id===btn.dataset.id
+        );
+
+        if(!book) return;
+
+        book.reviewStatus='validated';
+        book.updatedAt=nowIso();
+
+        await persist('book',book);
+
+        toast('Livre ajouté à la bibliothèque');
+        renderReview();
+      };
+    });
 }
 function renderTeacher(){
   appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;
