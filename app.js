@@ -1283,7 +1283,23 @@ function editBook(book,isNew=false){
   >
 </div>
 <div class="field"><label>Type</label><select id="b_type"><option value="">À définir</option>${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${book.type===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Propriétaire</label><select id="b_owner">${Object.entries(OWNERS).map(([k,v])=>`<option value="${k}" ${book.owner===k?'selected':''}>${v}</option>`).join('')}</select></div></div><div><div class="field"><label>URL couverture</label><input id="b_cover" value="${esc(book.cover||'')}"></div><div class="field"><label>Résumé</label><textarea id="b_summary">${esc(book.summary||'')}</textarea></div><div class="field"><label>Mots-clés (séparés par des virgules)</label><input id="b_keywords" value="${esc((book.keywords||[]).join(', '))}"></div><div class="field"><label>Nombre d’exemplaires</label><input id="b_copies" type="number" min="1" value="${Number(book.copies||1)}"></div><div class="field"><label>Emplacement physique</label><input id="b_location" value="${esc(book.location||'')}" placeholder="Placard A, étagère 2…"></div></div></div><div class="row"><button class="btn" id="saveBookBtn">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button>${!isNew?'<button class="btn btn-bad" id="deleteBookBtn">Supprimer</button>':''}</div>`);
-$('#saveBookBtn').onclick=async()=>{
+if(!isNew && book.reviewStatus==='pending'){
+  const validateBtn=document.createElement('button');
+
+  validateBtn.className='btn btn-ok';
+  validateBtn.id='validateBookBtn';
+  validateBtn.textContent='✅ Valider et ajouter à la bibliothèque';
+
+  const saveBtn=$('#saveBookBtn');
+
+  if(saveBtn && saveBtn.parentElement){
+    saveBtn.parentElement.insertBefore(
+      validateBtn,
+      saveBtn.nextSibling
+    );
+  }
+}
+  $('#saveBookBtn').onclick=async()=>{
   const obj={
     ...book,
     isbn:$('#b_isbn').value.trim(),
