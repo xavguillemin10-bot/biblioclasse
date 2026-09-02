@@ -1119,6 +1119,16 @@ function editBook(book,isNew=false){
   >
 </div>
 <div class="field">
+  <label>
+    <input
+      id="b_collectionHS"
+      type="checkbox"
+      ${book.collectionHS ? 'checked' : ''}
+    >
+    Hors-série de la collection
+  </label>
+</div>
+<div class="field">
   <label>Cote</label>
   <input
     id="b_code"
@@ -1131,6 +1141,7 @@ function editBook(book,isNew=false){
 collectionNumber:$('#b_collectionNumber').value
   ? Number($('#b_collectionNumber').value)
   : null,
+collectionHS:$('#b_collectionHS').checked,
 type:$('#b_type').value,owner:$('#b_owner').value,cover:$('#b_cover').value.trim(),summary:$('#b_summary').value.trim(),keywords:$('#b_keywords').value.split(',').map(x=>x.trim()).filter(Boolean),copies:Math.max(1,Number($('#b_copies').value||1)),location:$('#b_location').value.trim(),status:book.status||'reserve',code:$('#b_code').value.trim().toUpperCase(),updatedAt:nowIso()};if(!obj.title&&!obj.isbn){alert('Ajoute au moins un titre ou un ISBN.');return}if(isNew){state.books.push(obj)}else Object.assign(book,obj);await persist('book',obj);closeModal();toast('Livre enregistré')};
   if(!isNew)$('#deleteBookBtn').onclick=async()=>{if(confirm('Supprimer ce livre du catalogue ?')){await remove('book',book.id);closeModal()}};
 }
@@ -1347,7 +1358,26 @@ function renderCodes(){
     'fr',
     {numeric:true,sensitivity:'base'}
   );
-}).forEach(b=>{const prefix=b.collection?(state.settings.collections[b.collection]||suggestCollectionCode(b.collection)):(b.type||'X');counters[prefix]=(counters[prefix]||0)+1;b.code=`${prefix}-${String(counters[prefix]).padStart(3,'0')}`;updates.push(b)});if(state.mode==='local'){localSave();render();toast(`${updates.length} cote(s) attribuée(s)`)}else{const batch=writeBatch(state.fs);updates.forEach(b=>batch.set(userDoc('books',b.id),{code:b.code},{merge:true}));await batch.commit();toast(`${updates.length} cote(s) attribuée(s)`)}};
+}).forEach(b=>{
+    const prefix=b.collection
+  ? (state.settings.collections[b.collection] || suggestCollectionCode(b.collection))
+  : (b.type || 'X');
+
+if(b.collection && b.collectionNumber){
+  b.code=`${prefix}-${String(b.collectionNumber).padStart(3,'0')}`;
+}
+else if(b.collection && b.collectionHS){
+  const hsKey=`${prefix}-HS`;
+  counters[hsKey]=(counters[hsKey]||0)+1;
+  b.code=`${prefix}-HS${String(counters[hsKey]).padStart(3,'0')}`;
+}
+else{
+  counters[prefix]=(counters[prefix]||0)+1;
+  b.code=`${prefix}-${String(counters[prefix]).padStart(3,'0')}`;
+}
+
+updates.push(b)
+  });if(state.mode==='local'){localSave();render();toast(`${updates.length} cote(s) attribuée(s)`)}else{const batch=writeBatch(state.fs);updates.forEach(b=>batch.set(userDoc('books',b.id),{code:b.code},{merge:true}));await batch.commit();toast(`${updates.length} cote(s) attribuée(s)`)}};
 }
 function suggestCollectionCode(c){return norm(c).split(/\s+/).filter(w=>!['la','le','les','de','des','du','et','en','d'].includes(w)).map(w=>w[0]).join('').slice(0,3).toUpperCase()||'COL'}
 
