@@ -276,6 +276,17 @@ function renderReview(){
       }
     </div>
   `;
+  document.querySelectorAll('#teacherContent .book-card').forEach((card,index)=>{
+  card.style.cursor='pointer';
+
+  card.onclick=()=>{
+    const book=pending[index];
+
+    if(book){
+      editBook(book.id);
+    }
+  };
+});
 }
 function renderTeacher(){
   appEl.innerHTML=`<div class="app">${topbar()}${teacherTabs()}<div id="teacherContent"></div></div>`;
