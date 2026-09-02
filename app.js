@@ -1403,71 +1403,218 @@ function renderScanLog(logs){const el=$('#scanLog');if(!el)return;el.innerHTML=l
 async function stopScanner(){try{if(state.scanner){await state.scanner.stop().catch(()=>{});await state.scanner.clear().catch(()=>{})}}catch{}state.scanner=null;$('#scannerOverlay').classList.add('hidden');$('#scannerOverlay').setAttribute('aria-hidden','true');$('#reader').innerHTML=''}
 
 function editBook(book,isNew=false){
-  modal(`<h2>${isNew?'Ajouter':'Modifier'} un livre</h2><div class="grid"><div><div class="field"><label>ISBN</label><input id="b_isbn" value="${esc(book.isbn||'')}"></div><div class="field"><label>Titre</label><input id="b_title" value="${esc(book.title||'')}"></div><div class="field"><label>Auteur</label><input id="b_authors" value="${esc(book.authors||'')}"></div><div class="field"><label>Collection</label><input id="b_collection" value="${esc(book.collection||'')}"></div><div class="field">
-  <label>N° dans la collection</label>
-  <input
-    id="b_collectionNumber"
-    type="number"
-    min="1"
-    value="${book.collectionNumber ?? ''}"
-    placeholder="Ex. 1, 12, 25…"
-  >
-</div>
-<div class="field">
-  <label>
-    <input
-      id="b_collectionHS"
-      type="checkbox"
-      ${book.collectionHS ? 'checked' : ''}
-    >
-    Hors-série de la collection
-  </label>
-</div>
-<div class="field">
-  <label>Cote</label>
-  <input
-    id="b_code"
-    value="${esc(book.code||'')}"
-    placeholder="Ex. JCE2-001"
-  >
-</div>
-<div class="field"><label>Type</label><select id="b_type"><option value="">À définir</option>${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${book.type===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Propriétaire</label><select id="b_owner">${Object.entries(OWNERS).map(([k,v])=>`<option value="${k}" ${book.owner===k?'selected':''}>${v}</option>`).join('')}</select></div></div><div><div class="field"><label>URL couverture</label><input id="b_cover" value="${esc(book.cover||'')}"></div><div class="field"><label>Résumé</label><textarea id="b_summary">${esc(book.summary||'')}</textarea></div><div class="field"><label>Mots-clés (séparés par des virgules)</label><input id="b_keywords" value="${esc((book.keywords||[]).join(', '))}"></div><div class="field"><label>Nombre d’exemplaires</label><input id="b_copies" type="number" min="1" value="${Number(book.copies||1)}"></div><div class="field"><label>Emplacement physique</label><input id="b_location" value="${esc(book.location||'')}" placeholder="Placard A, étagère 2…"></div></div></div><div class="row"><button class="btn" id="saveBookBtn">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button>${!isNew?'<button class="btn btn-bad" id="deleteBookBtn">Supprimer</button>':''}</div>`);
-if(!isNew && book.reviewStatus==='pending'){
-  const validateBtn=document.createElement('button');
+  modal(`
+    <h2>${isNew?'Ajouter':'Modifier'} un livre</h2>
 
-  validateBtn.className='btn btn-ok';
-  validateBtn.id='validateBookBtn';
-  validateBtn.textContent='✅ Valider et ajouter à la bibliothèque';
+    <div class="grid">
 
-  const saveBtn=$('#saveBookBtn');
+      <div>
 
-  if(saveBtn && saveBtn.parentElement){
-    saveBtn.parentElement.insertBefore(
-      validateBtn,
-      saveBtn.nextSibling
-    );
-  }
-}
-const validateBtn=$('#validateBookBtn');
+        <div class="field">
+          <label>ISBN</label>
+          <input
+            id="b_isbn"
+            value="${esc(book.isbn||'')}"
+          >
+        </div>
 
-if(validateBtn){
-  validateBtn.onclick=async()=>{
-    book.reviewStatus='validated';
-    book.updatedAt=nowIso();
+        <div class="field">
+          <label>Titre</label>
+          <input
+            id="b_title"
+            value="${esc(book.title||'')}"
+          >
+        </div>
 
-    await persist('book',book);
+        <div class="field">
+          <label>Auteur</label>
+          <input
+            id="b_authors"
+            value="${esc(book.authors||'')}"
+          >
+        </div>
 
-    closeModal();
-    toast('Livre ajouté à la bibliothèque');
-    renderTeacher();
-  };
-}
-  $('#saveBookBtn').onclick=async()=>{
-  const obj={
+        <div class="field">
+          <label>Collection</label>
+          <input
+            id="b_collection"
+            value="${esc(book.collection||'')}"
+          >
+        </div>
+
+        <div class="field">
+          <label>N° dans la collection</label>
+          <input
+            id="b_collectionNumber"
+            type="number"
+            min="1"
+            value="${book.collectionNumber ?? ''}"
+            placeholder="Ex. 1, 12, 25…"
+          >
+        </div>
+
+        <div class="field">
+          <label>
+            <input
+              id="b_collectionHS"
+              type="checkbox"
+              ${book.collectionHS ? 'checked' : ''}
+            >
+            Hors-série de la collection
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Cote</label>
+          <input
+            id="b_code"
+            value="${esc(book.code||'')}"
+            placeholder="Ex. JCE2-001"
+          >
+        </div>
+
+        <div class="field">
+          <label>Type</label>
+
+          <select id="b_type">
+
+            <option value="">
+              À définir
+            </option>
+
+            ${
+              Object.entries(TYPES)
+                .map(([k,v])=>`
+                  <option
+                    value="${k}"
+                    ${book.type===k?'selected':''}
+                  >
+                    ${v}
+                  </option>
+                `)
+                .join('')
+            }
+
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Propriétaire</label>
+
+          <select id="b_owner">
+
+            ${
+              Object.entries(OWNERS)
+                .map(([k,v])=>`
+                  <option
+                    value="${k}"
+                    ${book.owner===k?'selected':''}
+                  >
+                    ${v}
+                  </option>
+                `)
+                .join('')
+            }
+
+          </select>
+        </div>
+
+      </div>
+
+      <div>
+
+        <div class="field">
+          <label>URL couverture</label>
+          <input
+            id="b_cover"
+            value="${esc(book.cover||'')}"
+          >
+        </div>
+
+        <div class="field">
+          <label>Résumé</label>
+
+          <textarea id="b_summary">${
+            esc(book.summary||'')
+          }</textarea>
+        </div>
+
+        <div class="field">
+          <label>
+            Mots-clés (séparés par des virgules)
+          </label>
+
+          <input
+            id="b_keywords"
+            value="${esc((book.keywords||[]).join(', '))}"
+          >
+        </div>
+
+        <div class="field">
+          <label>Nombre d’exemplaires</label>
+
+          <input
+            id="b_copies"
+            type="number"
+            min="1"
+            value="${Number(book.copies||1)}"
+          >
+        </div>
+
+        <div class="field">
+          <label>Emplacement physique</label>
+
+          <input
+            id="b_location"
+            value="${esc(book.location||'')}"
+            placeholder="Placard A, étagère 2…"
+          >
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="row">
+
+      <button
+        class="btn"
+        id="saveBookBtn"
+      >
+        Enregistrer
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal()"
+      >
+        Annuler
+      </button>
+
+      ${
+        !isNew
+        ? `
+          <button
+            class="btn btn-bad"
+            id="deleteBookBtn"
+          >
+            Supprimer
+          </button>
+        `
+        : ''
+      }
+
+    </div>
+  `);
+
+
+  const readBookForm=()=>({
     ...book,
+
     isbn:$('#b_isbn').value.trim(),
     title:$('#b_title').value.trim(),
     authors:$('#b_authors').value.trim(),
+
     collection:$('#b_collection').value.trim(),
 
     collectionNumber:$('#b_collectionNumber').value
@@ -1475,8 +1622,10 @@ if(validateBtn){
       : null,
 
     collectionHS:$('#b_collectionHS').checked,
+
     type:$('#b_type').value,
     owner:$('#b_owner').value,
+
     cover:$('#b_cover').value.trim(),
     summary:$('#b_summary').value.trim(),
 
@@ -1491,28 +1640,163 @@ if(validateBtn){
     ),
 
     location:$('#b_location').value.trim(),
+
     status:book.status||'reserve',
-    code:$('#b_code').value.trim().toUpperCase(),
+
+    code:$('#b_code')
+      .value
+      .trim()
+      .toUpperCase(),
+
     updatedAt:nowIso()
+  });
+
+
+  if(!isNew && book.reviewStatus==='pending'){
+
+    const validateBtn=document.createElement('button');
+
+    validateBtn.className='btn btn-ok';
+    validateBtn.id='validateBookBtn';
+
+    validateBtn.textContent=
+      '✅ Valider et ajouter à la bibliothèque';
+
+    const saveBtn=$('#saveBookBtn');
+
+    if(saveBtn && saveBtn.parentElement){
+
+      saveBtn.parentElement.insertBefore(
+        validateBtn,
+        saveBtn.nextSibling
+      );
+
+    }
+  }
+
+
+  const validateBtn=$('#validateBookBtn');
+
+  if(validateBtn){
+
+    validateBtn.onclick=async()=>{
+
+      const obj=readBookForm();
+
+      if(!obj.title && !obj.isbn){
+
+        alert(
+          'Ajoute au moins un titre ou un ISBN.'
+        );
+
+        return;
+      }
+
+
+      const missing=[];
+
+      if(!obj.type){
+        missing.push('type');
+      }
+
+      if(
+        !obj.summary ||
+        !obj.summary.trim()
+      ){
+        missing.push('résumé');
+      }
+
+      if(
+        obj.collection &&
+        !obj.collectionNumber &&
+        !obj.collectionHS
+      ){
+        missing.push('numéro de collection');
+      }
+
+
+      if(missing.length){
+
+        const message=
+          `⚠️ Cette fiche est incomplète.\n\n` +
+          `À compléter : ${missing.join(', ')}.\n\n` +
+          `Voulez-vous quand même valider ce livre ?`;
+
+        if(!confirm(message)){
+          return;
+        }
+      }
+
+
+      obj.reviewStatus='validated';
+
+      Object.assign(book,obj);
+
+      await persist('book',book);
+
+      closeModal();
+
+      toast(
+        'Livre ajouté à la bibliothèque'
+      );
+
+      renderTeacher();
+    };
+  }
+
+
+  $('#saveBookBtn').onclick=async()=>{
+
+    const obj=readBookForm();
+
+    if(!obj.title && !obj.isbn){
+
+      alert(
+        'Ajoute au moins un titre ou un ISBN.'
+      );
+
+      return;
+    }
+
+
+    if(isNew){
+
+      state.books.push(obj);
+
+    }else{
+
+      Object.assign(book,obj);
+
+    }
+
+
+    await persist('book',obj);
+
+    closeModal();
+
+    toast('Livre enregistré');
   };
 
-  if(!obj.title&&!obj.isbn){
-    alert('Ajoute au moins un titre ou un ISBN.');
-    return;
+
+  if(!isNew){
+
+    $('#deleteBookBtn').onclick=async()=>{
+
+      if(
+        confirm(
+          'Supprimer ce livre du catalogue ?'
+        )
+      ){
+
+        await remove(
+          'book',
+          book.id
+        );
+
+        closeModal();
+      }
+    };
   }
-
-  if(isNew){
-    state.books.push(obj);
-  }else{
-    Object.assign(book,obj);
-  }
-
-  await persist('book',obj);
-
-  closeModal();
-  toast('Livre enregistré');
-};
-  if(!isNew)$('#deleteBookBtn').onclick=async()=>{if(confirm('Supprimer ce livre du catalogue ?')){await remove('book',book.id);closeModal()}};
 }
 function openBook(id){const b=state.books.find(x=>x.id===id);if(!b)return;const av=availability(b);modal(`<div class="grid"><div class="cover" style="max-width:260px;margin:auto">${b.cover?`<img src="${esc(b.cover)}">`:'📕'}</div><div><h2>${esc(b.title)}</h2><p><strong>${esc(b.authors||'')}</strong></p><p>${b.code?`<span class="pill">${esc(b.code)}</span>`:'<span class="pill warn">À coter</span>'}${b.collection?`<span class="pill">${esc(b.collection)}</span>`:''}<span class="pill ${av.free?'ok':'warn'}">${av.free}/${av.copies} disponible(s)</span></p><p>${esc(b.summary||'')}</p><p>${(b.keywords||[]).map(k=>`<span class="pill">${esc(k)}</span>`).join('')}</p><p class="muted">${esc(OWNERS[b.owner]||'')} ${b.location?'· '+esc(b.location):''}</p><div class="row"><button class="btn" id="editBookBtn">Modifier</button><button class="btn btn-secondary" id="toggleStatusBtn">${b.status==='active'?'Mettre en réserve':'Mettre en classe'}</button><button class="btn btn-secondary" onclick="closeModal()">Fermer</button></div></div></div>`);$('#editBookBtn').onclick=()=>{closeModal();editBook(b,false)};$('#toggleStatusBtn').onclick=async()=>{b.status=b.status==='active'?'reserve':'active';await persist('book',b);closeModal();toast(b.status==='active'?'Livre mis en classe':'Livre mis en réserve')};}
 
