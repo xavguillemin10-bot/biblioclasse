@@ -996,7 +996,6 @@ async function startMultiAdd(){
           text:`${code} – ${existing.title} – exemplaire n°${existing.copies}`
         });
 
-        beep(true);
       }else{
         const found=await fetchBookByISBN(code);
 
@@ -1035,7 +1034,6 @@ async function startMultiAdd(){
             text:`${code} – ${found.title}`
           });
 
-          beep(true);
         }
       }
     }catch(e){
@@ -1067,7 +1065,10 @@ async function startMultiAdd(){
 
       state.lastScan={code,at:now};
 
-      queue.push(code);
+// Bip immédiat dès que le code-barres est accepté
+beep(true);
+
+queue.push(code);
 
       logs.unshift({
         kind:'ok',
