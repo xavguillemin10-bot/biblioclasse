@@ -16,12 +16,17 @@
 /* Cartes de l'espace "À vérifier" */
 #teacherContent .book-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
-  gap:16px;
+  grid-template-columns:repeat(auto-fill,130px);
+  gap:12px;
+  align-items:start;
+}
+
+#teacherContent .book-card{
+  width:130px;
 }
 
 #teacherContent .book-card .cover{
-  width:100%;
-  height:240px;
+  width:130px;
+  height:180px;
   object-fit:contain;
 }
