@@ -251,7 +251,7 @@ function renderReview(){
                 </div>
 
                 <div class="small">
-                  ${esc(book.author||'Auteur inconnu')}
+                 ${esc(book.authors||book.author||'Auteur inconnu')}
                 </div>
 
                 <div class="small">
@@ -262,6 +262,30 @@ function renderReview(){
                   Exemplaire${Number(book.copies||1)>1?'s':''} :
                   ${Number(book.copies||1)}
                 </div>
+<div class="small">
+  Collection :
+  ${esc(book.collection||'—')}
+  ${book.collectionNumber ? ` · n° ${book.collectionNumber}` : ''}
+</div>
+
+<div class="small">
+  Type : ${esc(TYPES[book.type]||'À définir')}
+</div>
+
+<div class="small" style="margin-top:6px;">
+  <strong>Résumé :</strong>
+  ${
+    book.summary
+      ? esc(
+          book.summary
+            .split(/\s+/)
+            .slice(0,18)
+            .join(' ') +
+          (book.summary.split(/\s+/).length>18 ? '…' : '')
+        )
+      : 'à compléter'
+  }
+</div>
 
                 ${
                   book.needsReview
