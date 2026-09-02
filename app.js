@@ -1146,7 +1146,7 @@ if(ownerRow){
    await state.scanner.start(
   preferred||{facingMode:'environment'},
   {
-    fps:15,
+    fps:10,
     qrbox:{
       width:Math.min(320,window.innerWidth-60),
       height:130
